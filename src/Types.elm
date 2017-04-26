@@ -11,7 +11,7 @@ type Shape
 
 
 type alias Octave =
-    Float
+    Int
 
 
 type alias Frequency =
@@ -20,18 +20,27 @@ type alias Frequency =
 
 type alias Oscillator =
     { shape : Shape
-    , baseFrequency : Frequency
     , octave : Octave
+    , volume : Volume
     , fadeOutPeriod : Time.Time
     }
 
 
-type alias SerializedOscillator =
+type alias Volume =
+    Int
+
+
+type alias SoundDescriptor =
     { shape : String
-    , baseFrequency : Frequency
+    , frequency : Frequency
     , octave : Octave
+    , volume : Volume
     , fadeOutPeriod : Time.Time
     }
+
+
+type alias Sound =
+    {}
 
 
 type alias Note =
@@ -54,8 +63,11 @@ serializeShape shape =
             "sawtooth"
 
 
-serialize : Oscillator -> SerializedOscillator
-serialize o =
-    { o
-        | shape = serializeShape o.shape
-    }
+makeSoundDescriptor : Frequency -> Oscillator -> SoundDescriptor
+makeSoundDescriptor f o =
+    SoundDescriptor
+        (serializeShape o.shape)
+        f
+        o.octave
+        o.volume
+        o.fadeOutPeriod

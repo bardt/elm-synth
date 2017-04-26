@@ -9,6 +9,7 @@ import List.Extra exposing (unique)
 import Platform.Sub exposing (batch)
 import Sound
 import Types exposing (..)
+import Toolkit.Helpers exposing (maybeList)
 
 
 type alias Model =
@@ -24,7 +25,17 @@ init audioSupported =
     ( { audioSupported = audioSupported
       , playing = False
       , pressed = []
-      , oscillators = [ defaultOscillator ]
+      , oscillators =
+            [ { defaultOscillator
+                | volume = 50
+                , octave = 2
+              }
+            , { shape = Triangle
+              , octave = 5
+              , volume = 12
+              , fadeOutPeriod = 1
+              }
+            ]
       }
     , Cmd.none
     )
@@ -53,25 +64,33 @@ keyToNoteMapping =
         , ( 85, "Bb" )
         , ( 74, "B" )
         , ( 75, "C+" )
+        , ( 79, "C#+" )
+        , ( 76, "D+" )
+        , ( 80, "D#+" )
+        , ( 186, "E+" )
         ]
 
 
 noteToFrequencyMapping : Dict.Dict Note Frequency
 noteToFrequencyMapping =
     Dict.fromList
-        [ ( "C", 130.8 / 3 )
-        , ( "C#", 138.6 / 3 )
-        , ( "D", 146.8 / 3 )
-        , ( "Eb", 155.6 / 3 )
-        , ( "E", 164.8 / 3 )
-        , ( "F", 174.6 / 3 )
-        , ( "F#", 185.0 / 3 )
-        , ( "G", 196.0 / 3 )
-        , ( "G#", 207.7 / 3 )
-        , ( "A", 220.0 / 3 )
-        , ( "Bb", 233.1 / 3 )
-        , ( "B", 246.9 / 3 )
-        , ( "C+", 261.6 / 3 )
+        [ ( "C", 16.35 )
+        , ( "C#", 17.32 )
+        , ( "D", 18.35 )
+        , ( "Eb", 19.45 )
+        , ( "E", 20.6 )
+        , ( "F", 21.83 )
+        , ( "F#", 23.12 )
+        , ( "G", 24.5 )
+        , ( "G#", 25.96 )
+        , ( "A", 27.5 )
+        , ( "Bb", 29.14 )
+        , ( "B", 30.87 )
+        , ( "C+", 16.35 * 2 )
+        , ( "C#+", 17.32 * 2 )
+        , ( "D+", 18.35 * 2 )
+        , ( "D#+", 19.45 * 2 )
+        , ( "E+", 20.6 * 2 )
         ]
 
 
@@ -95,9 +114,9 @@ keyToFrequency key =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        oscillatorByKey key =
-            keyToFrequency key
-                |> Maybe.map (\f -> { defaultOscillator | baseFrequency = f })
+        soundDescriptors : List Oscillator -> List Frequency -> List SoundDescriptor
+        soundDescriptors oscillators freqs =
+            List.concatMap (\f -> List.map (makeSoundDescriptor f) oscillators) freqs
     in
         case msg of
             PlayPause ->
@@ -107,34 +126,32 @@ update msg model =
                 let
                     keysPressed =
                         unique (key :: model.pressed)
-
-                    oscillators =
-                        List.filterMap oscillatorByKey keysPressed
                 in
                     ( { model
                         | pressed = keysPressed
-                        , oscillators = oscillators
                       }
-                    , oscillators
-                        |> List.map serialize
-                        |> Sound.startPlaying
+                    , keysPressed
+                        |> List.map keyToFrequency
+                        |> maybeList
+                        |> Maybe.map (soundDescriptors model.oscillators)
+                        |> Maybe.map Sound.startPlaying
+                        |> Maybe.withDefault Cmd.none
                     )
 
             Keyup key ->
                 let
                     keysPressed =
                         List.filter (\k -> k /= key) model.pressed
-
-                    oscillators =
-                        List.filterMap oscillatorByKey keysPressed
                 in
                     ( { model
                         | pressed = keysPressed
-                        , oscillators = oscillators
                       }
-                    , oscillators
-                        |> List.map serialize
-                        |> Sound.startPlaying
+                    , keysPressed
+                        |> List.map keyToFrequency
+                        |> maybeList
+                        |> Maybe.map (soundDescriptors model.oscillators)
+                        |> Maybe.map Sound.startPlaying
+                        |> Maybe.withDefault Cmd.none
                     )
 
             NoOp ->
@@ -169,7 +186,7 @@ view model =
 
 defaultOscillator : Oscillator
 defaultOscillator =
-    { shape = Sine, octave = 3, fadeOutPeriod = 0.5, baseFrequency = 0.0 }
+    { shape = Sine, volume = 100, octave = 3, fadeOutPeriod = 0.5 }
 
 
 oscillatorView : Oscillator -> Html Msg

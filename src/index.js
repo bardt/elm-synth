@@ -103,10 +103,12 @@ if (audioSupported) {
   function configureDevice(device, descriptor) {
     device.descriptor = descriptor;
 
-    device.o.frequency.value = descriptor.octave * descriptor.baseFrequency;
+    device.o.frequency.value =  descriptor.frequency * Math.pow(2, descriptor.octave);
     device.o.type = descriptor.shape;
 
-    return device
+    device.g.gain.value = descriptor.volume / 100;
+
+    return device;
   }
 
   function key(descriptor) {
