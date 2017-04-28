@@ -3,13 +3,14 @@ module App exposing (..)
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, on, targetValue)
 import Keyboard exposing (KeyCode, downs, ups)
 import List.Extra exposing (unique)
 import Platform.Sub exposing (batch)
 import Sound
-import Types exposing (..)
 import Toolkit.Helpers exposing (maybeList)
+import Types exposing (..)
+import Json.Decode as Json
 
 
 type alias Model =
@@ -45,6 +46,7 @@ type Msg
     = PlayPause
     | Keydown KeyCode
     | Keyup KeyCode
+    | ChangeOctave Int Octave
     | NoOp
 
 
@@ -154,6 +156,27 @@ update msg model =
                         |> Maybe.withDefault Cmd.none
                     )
 
+            ChangeOctave index octave ->
+                let
+                    changeOctave oscillator octave =
+                        { oscillator | octave = octave }
+
+                    updateOscillators oscillators =
+                        List.indexedMap
+                            (\i o ->
+                                if (i == index) then
+                                    changeOctave o octave
+                                else
+                                    o
+                            )
+                            oscillators
+                in
+                    ( { model
+                        | oscillators = updateOscillators model.oscillators
+                      }
+                    , Cmd.none
+                    )
+
             NoOp ->
                 ( model, Cmd.none )
 
@@ -180,7 +203,7 @@ view model =
                         )
                     ]
                 ]
-                    ++ (List.map oscillatorView model.oscillators)
+                    ++ (List.indexedMap oscillatorView model.oscillators)
             ]
 
 
@@ -189,13 +212,35 @@ defaultOscillator =
     { shape = Sine, volume = 100, octave = 3, fadeOutPeriod = 0.5 }
 
 
-oscillatorView : Oscillator -> Html Msg
-oscillatorView o =
-    div []
-        [ input [ Html.Attributes.type_ "number", value <| toString o.octave ] []
-          -- Shape
-        , optgroup [] [ option [] [] ]
-        ]
+oscillatorView : Int -> Oscillator -> Html Msg
+oscillatorView index o =
+    let
+        intDecoder : String -> Json.Decoder Int
+        intDecoder string =
+            case (String.toInt string) of
+                Ok value ->
+                    Json.succeed value
+
+                Err message ->
+                    Json.fail message
+
+        onIntInput : (Int -> Msg) -> Attribute Msg
+        onIntInput tagger =
+            on "input"
+                (targetValue
+                    |> Json.andThen intDecoder
+                    |> Json.map tagger
+                )
+    in
+        div []
+            [ label [] [ text "Octave: " ]
+            , input
+                [ Html.Attributes.type_ "number"
+                , value <| toString o.octave
+                , onIntInput (ChangeOctave index)
+                ]
+                []
+            ]
 
 
 subscriptions : Model -> Sub Msg
