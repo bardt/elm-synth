@@ -198,9 +198,17 @@ volumeChangeView index oscillator =
     label []
         [ text "Volume: "
         , input
-            [ Html.Attributes.type_ "number"
-            , value <| toString oscillator.volume
+            [ Html.Attributes.type_ "range"
+            , Html.Attributes.min "0"
+            , Html.Attributes.max "100"
+            , Html.Attributes.value <| toString oscillator.volume
             , FormHelpers.onIntInput (ChangeVolume index)
+            ]
+            []
+        , input
+            [ type_ "number"
+            , FormHelpers.onIntInput (ChangeVolume index)
+            , Html.Attributes.value <| toString oscillator.volume
             ]
             []
         ]
@@ -209,9 +217,6 @@ volumeChangeView index oscillator =
 shapeSelectView : Int -> Oscillator -> Html Msg
 shapeSelectView index oscillator =
     let
-        shape =
-            oscillator.shape
-
         shapeDecoder : String -> Json.Decoder Shape
         shapeDecoder string =
             case (Shape.fromString string) of
@@ -230,10 +235,10 @@ shapeSelectView index oscillator =
                 )
     in
         select [ onChange (ChangeShape index) ]
-            [ option [ value (toString Sine), selected (shape == Sine) ] [ text "Sine" ]
-            , option [ value (toString Triangle), selected (shape == Triangle) ] [ text "Triangle" ]
-            , option [ value (toString Square), selected (shape == Square) ] [ text "Square" ]
-            , option [ value (toString Sawtooth), selected (shape == Sawtooth) ] [ text "Sawtooth" ]
+            [ option [ value (toString Sine), selected (oscillator.shape == Sine) ] [ text "Sine" ]
+            , option [ value (toString Triangle), selected (oscillator.shape == Triangle) ] [ text "Triangle" ]
+            , option [ value (toString Square), selected (oscillator.shape == Square) ] [ text "Square" ]
+            , option [ value (toString Sawtooth), selected (oscillator.shape == Sawtooth) ] [ text "Sawtooth" ]
             ]
 
 
