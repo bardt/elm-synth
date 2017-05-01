@@ -1,6 +1,5 @@
 module App exposing (..)
 
-import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
@@ -12,6 +11,8 @@ import Sound
 import Toolkit.Helpers exposing (maybeList)
 import Types exposing (..)
 import Shape
+import FormHelpers
+import Keys exposing (keyToFrequency)
 
 
 type alias Model =
@@ -44,76 +45,12 @@ init audioSupported =
 
 
 type Msg
-    = PlayPause
-    | Keydown KeyCode
+    = Keydown KeyCode
     | Keyup KeyCode
     | ChangeOctave Int Octave
     | ChangeVolume Int Volume
     | ChangeShape Int Shape
     | NoOp
-
-
-keyToNoteMapping : Dict.Dict KeyCode Note
-keyToNoteMapping =
-    Dict.fromList
-        [ ( 65, "C" )
-        , ( 87, "C#" )
-        , ( 83, "D" )
-        , ( 69, "Eb" )
-        , ( 68, "E" )
-        , ( 70, "F" )
-        , ( 84, "F#" )
-        , ( 71, "G" )
-        , ( 89, "G#" )
-        , ( 72, "A" )
-        , ( 85, "Bb" )
-        , ( 74, "B" )
-        , ( 75, "C+" )
-        , ( 79, "C#+" )
-        , ( 76, "D+" )
-        , ( 80, "D#+" )
-        , ( 186, "E+" )
-        ]
-
-
-noteToFrequencyMapping : Dict.Dict Note Frequency
-noteToFrequencyMapping =
-    Dict.fromList
-        [ ( "C", 16.35 )
-        , ( "C#", 17.32 )
-        , ( "D", 18.35 )
-        , ( "Eb", 19.45 )
-        , ( "E", 20.6 )
-        , ( "F", 21.83 )
-        , ( "F#", 23.12 )
-        , ( "G", 24.5 )
-        , ( "G#", 25.96 )
-        , ( "A", 27.5 )
-        , ( "Bb", 29.14 )
-        , ( "B", 30.87 )
-        , ( "C+", 16.35 * 2 )
-        , ( "C#+", 17.32 * 2 )
-        , ( "D+", 18.35 * 2 )
-        , ( "D#+", 19.45 * 2 )
-        , ( "E+", 20.6 * 2 )
-        ]
-
-
-keyToNote : KeyCode -> Maybe Note
-keyToNote keyCode =
-    Dict.get keyCode keyToNoteMapping
-
-
-noteToFrequency : Note -> Maybe Frequency
-noteToFrequency note =
-    Dict.get note noteToFrequencyMapping
-
-
-keyToFrequency : KeyCode -> Maybe Frequency
-keyToFrequency key =
-    key
-        |> keyToNote
-        |> Maybe.andThen noteToFrequency
 
 
 makeSound : List KeyCode -> List Oscillator -> Cmd Msg
@@ -134,9 +71,6 @@ makeSound keys oscillators =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        PlayPause ->
-            ( { model | playing = not model.playing }, Sound.sendPlaytoJs (not model.playing) )
-
         Keydown key ->
             let
                 keysPressed =
@@ -161,21 +95,11 @@ update msg model =
 
         ChangeOctave index octave ->
             let
-                changeOctave oscillator octave =
+                changeOctave oscillator =
                     { oscillator | octave = octave }
 
-                updateOscillators oscillators =
-                    List.indexedMap
-                        (\i o ->
-                            if (i == index) then
-                                changeOctave o octave
-                            else
-                                o
-                        )
-                        oscillators
-
                 newOscillators =
-                    updateOscillators model.oscillators
+                    updateOscillatorAtIndex index changeOctave model.oscillators
             in
                 ( { model
                     | oscillators = newOscillators
@@ -185,21 +109,11 @@ update msg model =
 
         ChangeVolume index volume ->
             let
-                changeVolume oscillator volume =
+                changeVolume oscillator =
                     { oscillator | volume = volume }
 
-                updateOscillators oscillators =
-                    List.indexedMap
-                        (\i o ->
-                            if (i == index) then
-                                changeVolume o volume
-                            else
-                                o
-                        )
-                        oscillators
-
                 newOscillators =
-                    updateOscillators model.oscillators
+                    updateOscillatorAtIndex index changeVolume model.oscillators
             in
                 ( { model
                     | oscillators = newOscillators
@@ -209,21 +123,11 @@ update msg model =
 
         ChangeShape index shape ->
             let
-                changeShape oscillator shape =
+                changeShape oscillator =
                     { oscillator | shape = shape }
 
-                updateOscillators oscillators =
-                    List.indexedMap
-                        (\i o ->
-                            if (i == index) then
-                                changeShape o shape
-                            else
-                                o
-                        )
-                        oscillators
-
                 newOscillators =
-                    updateOscillators model.oscillators
+                    updateOscillatorAtIndex index changeShape model.oscillators
             in
                 ( { model
                     | oscillators = newOscillators
@@ -235,30 +139,28 @@ update msg model =
             ( model, Cmd.none )
 
 
+updateOscillatorAtIndex : Int -> (Oscillator -> Oscillator) -> List Oscillator -> List Oscillator
+updateOscillatorAtIndex index update oscillators =
+    List.indexedMap
+        (\i o ->
+            if (i == index) then
+                update o
+            else
+                o
+        )
+        oscillators
+
+
 view : Model -> Html Msg
 view model =
-    let
-        supportedMessage =
-            if model.audioSupported then
-                "Audio supported"
-            else
-                "Audio NOT supported"
-    in
-        div []
-            [ div []
-                [ text supportedMessage ]
-            , div [] <|
-                [ button [ onClick PlayPause ]
-                    [ text
-                        (if model.playing then
-                            "Pause"
-                         else
-                            "Play"
-                        )
-                    ]
-                ]
-                    ++ (List.indexedMap oscillatorView model.oscillators)
-            ]
+    div []
+        [ div []
+            (if not model.audioSupported then
+                [ text "Audio NOT supported" ]
+             else
+                List.indexedMap oscillatorView model.oscillators
+            )
+        ]
 
 
 defaultOscillator : Oscillator
@@ -268,50 +170,40 @@ defaultOscillator =
 
 oscillatorView : Int -> Oscillator -> Html Msg
 oscillatorView index o =
-    let
-        intDecoder : String -> Json.Decoder Int
-        intDecoder string =
-            case (String.toInt string) of
-                Ok value ->
-                    Json.succeed value
+    Html.form []
+        [ div []
+            [ octaveChangeView index o ]
+        , div []
+            [ volumeChangeView index o ]
+        , div []
+            [ shapeSelectView index o ]
+        ]
 
-                Err message ->
-                    Json.fail message
 
-        onIntInput : (Int -> Msg) -> Attribute Msg
-        onIntInput tagger =
-            on "input"
-                (targetValue
-                    |> Json.andThen intDecoder
-                    |> Json.map tagger
-                )
-    in
-        Html.form []
-            [ div []
-                [ label []
-                    [ text "Octave: "
-                    , input
-                        [ Html.Attributes.type_ "number"
-                        , value <| toString o.octave
-                        , onIntInput (ChangeOctave index)
-                        ]
-                        []
-                    ]
-                ]
-            , div []
-                [ label []
-                    [ text "Volume: "
-                    , input
-                        [ Html.Attributes.type_ "number"
-                        , value <| toString o.volume
-                        , onIntInput (ChangeVolume index)
-                        ]
-                        []
-                    ]
-                ]
-            , div []
-                [ shapeSelectView index o ]
+octaveChangeView : Int -> Oscillator -> Html Msg
+octaveChangeView index oscillator =
+    label []
+        [ text "Octave: "
+        , input
+            [ Html.Attributes.type_ "number"
+            , value <| toString oscillator.octave
+            , FormHelpers.onIntInput (ChangeOctave index)
             ]
+            []
+        ]
+
+
+volumeChangeView : Int -> Oscillator -> Html Msg
+volumeChangeView index oscillator =
+    label []
+        [ text "Volume: "
+        , input
+            [ Html.Attributes.type_ "number"
+            , value <| toString oscillator.volume
+            , FormHelpers.onIntInput (ChangeVolume index)
+            ]
+            []
+        ]
 
 
 shapeSelectView : Int -> Oscillator -> Html Msg
