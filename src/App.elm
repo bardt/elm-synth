@@ -261,23 +261,27 @@ oscillatorView index o =
                 )
     in
         div []
-            [ label []
-                [ text "Octave: "
-                , input
-                    [ Html.Attributes.type_ "number"
-                    , value <| toString o.octave
-                    , onIntInput (ChangeOctave index)
+            [ div []
+                [ label []
+                    [ text "Octave: "
+                    , input
+                        [ Html.Attributes.type_ "number"
+                        , value <| toString o.octave
+                        , onIntInput (ChangeOctave index)
+                        ]
+                        []
                     ]
-                    []
                 ]
-            , label []
-                [ text "Volume: "
-                , input
-                    [ Html.Attributes.type_ "number"
-                    , value <| toString o.volume
-                    , onIntInput (ChangeVolume index)
+            , div []
+                [ label []
+                    [ text "Volume: "
+                    , input
+                        [ Html.Attributes.type_ "number"
+                        , value <| toString o.volume
+                        , onIntInput (ChangeVolume index)
+                        ]
+                        []
                     ]
-                    []
                 ]
             ]
 

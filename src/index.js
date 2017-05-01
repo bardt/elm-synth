@@ -3,77 +3,18 @@ var Elm = require('./Main.elm');
 
 var root = document.getElementById('root');
 
+// Fix for prefixed browsers
+window.AudioContext = window.AudioContext||window.webkitAudioContext;
+
 var audioSupported = typeof window.AudioContext !== 'undefined';
 
 var app = Elm.Main.embed(root, audioSupported);
 
 // Inspired by http://marcgg.com/blog/2016/11/01/javascript-audio/#
+// and https://www.html5rocks.com/en/tutorials/webaudio/intro/
 if (audioSupported) {
   var context = new AudioContext();
   var gainNode;
-
-  // app.ports.sendPlaytoJs.subscribe(function (isPlaying) {
-  //   if (isPlaying) {
-  //     gainNode = context.createGain();
-  //
-  //     var oscillator1 = context.createOscillator();
-  //     oscillator1.type = "triangle";
-  //     oscillator1.frequency.value = 440;
-  //     oscillator1.connect(gainNode);
-  //
-  //     var oscillator2 = context.createOscillator();
-  //     oscillator2.type = "triangle";
-  //     oscillator2.frequency.value = 440 * 2;
-  //     oscillator2.connect(gainNode);
-  //
-  //     gainNode.connect(context.destination);
-  //     oscillator1.start(0);
-  //     oscillator2.start(0);
-  //
-  //   } else {
-  //     if (gainNode) {
-  //       gainNode.gain.exponentialRampToValueAtTime(
-  //         0.00001, context.currentTime + 0.5
-  //       )
-  //     }
-  //   }
-  // });
-  //
-  // var gains = {};
-  //
-  // app.ports.startPlayingHZ.subscribe(function (hz) {
-  //   var exisingGainNode = gains[hz];
-  //
-  //   if (!exisingGainNode) {
-  //     var gainNode = context.createGain();
-  //     gainNode.connect(context.destination);
-  //
-  //     var o = context.createOscillator();
-  //     o.type = "triangle";
-  //     o.frequency.value = hz / 100;
-  //     o.connect(gainNode);
-  //
-  //     var o2 = context.createOscillator();
-  //     o2.type = "square";
-  //     o2.frequency.value = hz * 1.5 / 10;
-  //     o2.connect(gainNode);
-  //
-  //     gains[hz] = gainNode;
-  //     o.start();
-  //     o2.start();
-  //   }
-  // });
-  //
-  // app.ports.stopPlayingHZ.subscribe(function (hz) {
-  //   var gainNode = gains[hz];
-  //
-  //   if (gainNode) {
-  //     gainNode.gain.exponentialRampToValueAtTime(
-  //       0.00001, context.currentTime + 0.5
-  //     )
-  //     gains[hz] = null;
-  //   }
-  // });
 
   var devices = {};
 
@@ -106,7 +47,7 @@ if (audioSupported) {
     device.o.frequency.value =  descriptor.frequency * Math.pow(2, descriptor.octave);
     device.o.type = descriptor.shape;
 
-    device.g.gain.value = descriptor.volume / 100;
+    device.g.gain.setValueAtTime(descriptor.volume / 100, context.currentTime);
 
     return device;
   }
@@ -122,7 +63,7 @@ if (audioSupported) {
       if (!device) {
         device = devices[key(descriptor)] = connectDevice(new Device());
         configureDevice(device, descriptor);
-        device.o.start();
+        device.o.start(0);
       }
     });
 
@@ -136,13 +77,14 @@ if (audioSupported) {
     devicesToDie.forEach(function(device, index) {
       var fadeTime = device.descriptor.fadeOutPeriod;
 
+      device.g.gain.setValueAtTime(device.g.gain.value, context.currentTime);
       device.g.gain.exponentialRampToValueAtTime(
         0.00001, context.currentTime + fadeTime
       );
 
       setTimeout(function() {
         device.o.stop();
-      }, 1 + 1000);
+      }, fadeTime + 1000);
 
       delete devices[key(device.descriptor)];
     });
