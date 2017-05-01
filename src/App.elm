@@ -3,14 +3,15 @@ module App exposing (..)
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, on, targetValue)
+import Html.Events exposing (on, onClick, onInput, targetValue)
+import Json.Decode as Json
 import Keyboard exposing (KeyCode, downs, ups)
 import List.Extra exposing (unique)
 import Platform.Sub exposing (batch)
 import Sound
 import Toolkit.Helpers exposing (maybeList)
 import Types exposing (..)
-import Json.Decode as Json
+import Shape
 
 
 type alias Model =
@@ -48,6 +49,7 @@ type Msg
     | Keyup KeyCode
     | ChangeOctave Int Octave
     | ChangeVolume Int Volume
+    | ChangeShape Int Shape
     | NoOp
 
 
@@ -205,6 +207,30 @@ update msg model =
                 , makeSound model.pressed newOscillators
                 )
 
+        ChangeShape index shape ->
+            let
+                changeShape oscillator shape =
+                    { oscillator | shape = shape }
+
+                updateOscillators oscillators =
+                    List.indexedMap
+                        (\i o ->
+                            if (i == index) then
+                                changeShape o shape
+                            else
+                                o
+                        )
+                        oscillators
+
+                newOscillators =
+                    updateOscillators model.oscillators
+            in
+                ( { model
+                    | oscillators = newOscillators
+                  }
+                , makeSound model.pressed newOscillators
+                )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -260,7 +286,7 @@ oscillatorView index o =
                     |> Json.map tagger
                 )
     in
-        div []
+        Html.form []
             [ div []
                 [ label []
                     [ text "Octave: "
@@ -283,6 +309,39 @@ oscillatorView index o =
                         []
                     ]
                 ]
+            , div []
+                [ shapeSelectView index o ]
+            ]
+
+
+shapeSelectView : Int -> Oscillator -> Html Msg
+shapeSelectView index oscillator =
+    let
+        shape =
+            oscillator.shape
+
+        shapeDecoder : String -> Json.Decoder Shape
+        shapeDecoder string =
+            case (Shape.fromString string) of
+                Ok shape ->
+                    Json.succeed shape
+
+                Err message ->
+                    Json.fail message
+
+        onChange : (Shape -> Msg) -> Attribute Msg
+        onChange tagger =
+            on "input"
+                (targetValue
+                    |> Json.andThen shapeDecoder
+                    |> Json.map tagger
+                )
+    in
+        select [ onChange (ChangeShape index) ]
+            [ option [ value (toString Sine), selected (shape == Sine) ] [ text "Sine" ]
+            , option [ value (toString Triangle), selected (shape == Triangle) ] [ text "Triangle" ]
+            , option [ value (toString Square), selected (shape == Square) ] [ text "Square" ]
+            , option [ value (toString Sawtooth), selected (shape == Sawtooth) ] [ text "Sawtooth" ]
             ]
 
 
