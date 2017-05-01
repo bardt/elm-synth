@@ -1,18 +1,18 @@
 module App exposing (..)
 
+import FormHelpers
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Keyboard exposing (KeyCode, downs, ups)
+import Keys exposing (keyToFrequency)
 import List.Extra exposing (unique)
 import Platform.Sub exposing (batch)
+import Shape
 import Sound
 import Toolkit.Helpers exposing (maybeList)
 import Types exposing (..)
-import Shape
-import FormHelpers
-import Keys exposing (keyToFrequency)
 
 
 type alias Model =
@@ -154,13 +154,11 @@ updateOscillatorAtIndex index update oscillators =
 view : Model -> Html Msg
 view model =
     div []
-        [ div []
-            (if not model.audioSupported then
-                [ text "Audio NOT supported" ]
-             else
-                List.indexedMap oscillatorView model.oscillators
-            )
-        ]
+        (if not model.audioSupported then
+            [ text "Audio NOT supported" ]
+         else
+            Keys.view :: List.indexedMap oscillatorView model.oscillators
+        )
 
 
 defaultOscillator : Oscillator
