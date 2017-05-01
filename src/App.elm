@@ -47,6 +47,7 @@ type Msg
     | Keydown KeyCode
     | Keyup KeyCode
     | ChangeOctave Int Octave
+    | ChangeVolume Int Volume
     | NoOp
 
 
@@ -113,72 +114,99 @@ keyToFrequency key =
         |> Maybe.andThen noteToFrequency
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+makeSound : List KeyCode -> List Oscillator -> Cmd Msg
+makeSound keys oscillators =
     let
         soundDescriptors : List Oscillator -> List Frequency -> List SoundDescriptor
         soundDescriptors oscillators freqs =
             List.concatMap (\f -> List.map (makeSoundDescriptor f) oscillators) freqs
     in
-        case msg of
-            PlayPause ->
-                ( { model | playing = not model.playing }, Sound.sendPlaytoJs (not model.playing) )
+        keys
+            |> List.map keyToFrequency
+            |> maybeList
+            |> Maybe.map (soundDescriptors oscillators)
+            |> Maybe.map Sound.startPlaying
+            |> Maybe.withDefault Cmd.none
 
-            Keydown key ->
-                let
-                    keysPressed =
-                        unique (key :: model.pressed)
-                in
-                    ( { model
-                        | pressed = keysPressed
-                      }
-                    , keysPressed
-                        |> List.map keyToFrequency
-                        |> maybeList
-                        |> Maybe.map (soundDescriptors model.oscillators)
-                        |> Maybe.map Sound.startPlaying
-                        |> Maybe.withDefault Cmd.none
-                    )
 
-            Keyup key ->
-                let
-                    keysPressed =
-                        List.filter (\k -> k /= key) model.pressed
-                in
-                    ( { model
-                        | pressed = keysPressed
-                      }
-                    , keysPressed
-                        |> List.map keyToFrequency
-                        |> maybeList
-                        |> Maybe.map (soundDescriptors model.oscillators)
-                        |> Maybe.map Sound.startPlaying
-                        |> Maybe.withDefault Cmd.none
-                    )
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        PlayPause ->
+            ( { model | playing = not model.playing }, Sound.sendPlaytoJs (not model.playing) )
 
-            ChangeOctave index octave ->
-                let
-                    changeOctave oscillator octave =
-                        { oscillator | octave = octave }
+        Keydown key ->
+            let
+                keysPressed =
+                    unique (key :: model.pressed)
+            in
+                ( { model
+                    | pressed = keysPressed
+                  }
+                , makeSound keysPressed model.oscillators
+                )
 
-                    updateOscillators oscillators =
-                        List.indexedMap
-                            (\i o ->
-                                if (i == index) then
-                                    changeOctave o octave
-                                else
-                                    o
-                            )
-                            oscillators
-                in
-                    ( { model
-                        | oscillators = updateOscillators model.oscillators
-                      }
-                    , Cmd.none
-                    )
+        Keyup key ->
+            let
+                keysPressed =
+                    List.filter (\k -> k /= key) model.pressed
+            in
+                ( { model
+                    | pressed = keysPressed
+                  }
+                , makeSound keysPressed model.oscillators
+                )
 
-            NoOp ->
-                ( model, Cmd.none )
+        ChangeOctave index octave ->
+            let
+                changeOctave oscillator octave =
+                    { oscillator | octave = octave }
+
+                updateOscillators oscillators =
+                    List.indexedMap
+                        (\i o ->
+                            if (i == index) then
+                                changeOctave o octave
+                            else
+                                o
+                        )
+                        oscillators
+
+                newOscillators =
+                    updateOscillators model.oscillators
+            in
+                ( { model
+                    | oscillators = newOscillators
+                  }
+                , makeSound model.pressed newOscillators
+                )
+
+        ChangeVolume index volume ->
+            let
+                changeVolume oscillator volume =
+                    { oscillator | volume = volume }
+
+                updateOscillators oscillators =
+                    List.indexedMap
+                        (\i o ->
+                            if (i == index) then
+                                changeVolume o volume
+                            else
+                                o
+                        )
+                        oscillators
+
+                newOscillators =
+                    updateOscillators model.oscillators
+            in
+                ( { model
+                    | oscillators = newOscillators
+                  }
+                , makeSound model.pressed newOscillators
+                )
+
+        NoOp ->
+            ( model, Cmd.none )
 
 
 view : Model -> Html Msg
@@ -233,13 +261,24 @@ oscillatorView index o =
                 )
     in
         div []
-            [ label [] [ text "Octave: " ]
-            , input
-                [ Html.Attributes.type_ "number"
-                , value <| toString o.octave
-                , onIntInput (ChangeOctave index)
+            [ label []
+                [ text "Octave: "
+                , input
+                    [ Html.Attributes.type_ "number"
+                    , value <| toString o.octave
+                    , onIntInput (ChangeOctave index)
+                    ]
+                    []
                 ]
-                []
+            , label []
+                [ text "Volume: "
+                , input
+                    [ Html.Attributes.type_ "number"
+                    , value <| toString o.volume
+                    , onIntInput (ChangeVolume index)
+                    ]
+                    []
+                ]
             ]
 
 
