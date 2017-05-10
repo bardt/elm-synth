@@ -13,9 +13,18 @@ import Html.Events
 import Keyboard exposing (KeyCode, downs, ups)
 
 
+{-| Represents phisical key on a keyboard
+-}
 type alias Key =
     { pressed : Bool
     , note : Note
+    }
+
+
+type alias Note =
+    { letter : Letter
+    , type_ : NoteType
+    , octave : Octave
     }
 
 
@@ -34,13 +43,6 @@ letters =
     [ C, D, E, F, G, A, B ]
 
 
-type alias Note =
-    { letter : Letter
-    , type_ : NoteType
-    , octave : Octave
-    }
-
-
 type NoteType
     = Natural
     | Sharp
@@ -56,8 +58,8 @@ type alias Model =
     }
 
 
-keys : Octave -> List Key
-keys oct =
+keyboard : Octave -> List Key
+keyboard oct =
     let
         notes =
             [ Note C Natural oct
@@ -88,7 +90,7 @@ initModel =
         octave =
             4
     in
-        { keys = keys octave
+        { keys = keyboard octave
         , octave = octave
         }
 
@@ -179,14 +181,14 @@ view model =
         []
         [ g
             []
-            (keysViews
+            (keyViews
                 model
             )
         ]
 
 
-keysViews : { a | keys : List Key, octave : Int } -> List (Svg Msg)
-keysViews model =
+keyViews : Model -> List (Svg Msg)
+keyViews model =
     model.keys
         |> List.filterMap
             (\k ->
@@ -233,22 +235,27 @@ type WhiteKeyType
 
 whiteWidth : Int
 whiteWidth =
-    20
+    30
 
 
 whiteHeight : Int
 whiteHeight =
-    100
+    150
 
 
 blackWidth : Int
 blackWidth =
-    10
+    15
 
 
 blackHeight : Int
 blackHeight =
-    70
+    90
+
+
+gapSize : Int
+gapSize =
+    1
 
 
 pointToString : ( Int, Int ) -> String
@@ -260,35 +267,35 @@ whiteKeyView : Key -> WhiteKeyType -> Int -> Svg Msg
 whiteKeyView key keyType translate =
     let
         pointsSource =
-            [ ( 0, blackHeight )
-            , ( 0, whiteHeight )
-            , ( whiteWidth, whiteHeight )
-            , ( whiteWidth, blackHeight )
+            [ ( gapSize, blackHeight + gapSize )
+            , ( gapSize, whiteHeight - gapSize )
+            , ( whiteWidth - gapSize, whiteHeight - gapSize )
+            , ( whiteWidth - gapSize, blackHeight + gapSize )
             ]
                 -- Top right
                 ++
                     (case keyType of
                         Left ->
-                            [ ( whiteWidth - round (toFloat blackWidth / 2), blackHeight ) ]
+                            [ ( whiteWidth - round (toFloat blackWidth / 2) - gapSize, blackHeight + gapSize ) ]
 
                         Middle ->
-                            [ ( whiteWidth - round (toFloat blackWidth / 2), blackHeight ) ]
+                            [ ( whiteWidth - round (toFloat blackWidth / 2) - gapSize, blackHeight + gapSize ) ]
 
                         Right ->
-                            [ ( whiteWidth, 0 ) ]
+                            [ ( whiteWidth - gapSize, 0 ) ]
                     )
-                ++ [ ( whiteWidth - round (toFloat blackWidth / 2), 0 )
-                   , ( round (toFloat blackWidth / 2), 0 )
+                ++ [ ( whiteWidth - round (toFloat blackWidth / 2) - gapSize, 0 )
+                   , ( round (toFloat blackWidth / 2) + gapSize, 0 )
                    ]
                 ++ (case keyType of
                         Left ->
-                            [ ( 0, 0 ) ]
+                            [ ( gapSize, 0 ) ]
 
                         Middle ->
-                            [ ( round (toFloat blackWidth / 2), blackHeight ) ]
+                            [ ( round (toFloat blackWidth / 2) + gapSize, blackHeight + gapSize ) ]
 
                         Right ->
-                            [ ( round (toFloat blackWidth / 2), blackHeight ) ]
+                            [ ( round (toFloat blackWidth / 2) + gapSize, blackHeight + gapSize ) ]
                    )
     in
         polygon
@@ -315,10 +322,10 @@ blackKeyView : Key -> Int -> Svg Msg
 blackKeyView key translate =
     let
         pointsSource =
-            [ ( 0, 0 )
-            , ( 0, blackHeight )
-            , ( blackWidth, blackHeight )
-            , ( blackWidth, 0 )
+            [ ( gapSize, 0 )
+            , ( gapSize, blackHeight - gapSize )
+            , ( blackWidth - gapSize, blackHeight - gapSize )
+            , ( blackWidth - gapSize, 0 )
             ]
     in
         polygon

@@ -10,7 +10,7 @@ type Shape
     | Sawtooth
 
 
-type alias Octave =
+type alias OctaveDelta =
     Int
 
 
@@ -20,7 +20,7 @@ type alias Frequency =
 
 type alias Oscillator =
     { shape : Shape
-    , octave : Octave
+    , octave : OctaveDelta
     , volume : Volume
     , fadeOutPeriod : Time.Time
     }
@@ -36,14 +36,6 @@ type alias SoundDescriptor =
     , volume : Volume
     , fadeOutPeriod : Time.Time
     }
-
-
-type alias Sound =
-    {}
-
-
-type alias Note =
-    String
 
 
 serializeShape : Shape -> String

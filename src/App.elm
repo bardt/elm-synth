@@ -5,7 +5,6 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
-import Keyboard exposing (KeyCode, downs, ups)
 import Keys
 import Platform.Sub exposing (batch)
 import Shape
@@ -16,8 +15,6 @@ import Types exposing (..)
 type alias Model =
     { audioSupported : Bool
     , keys : Keys.Model
-    , playing : Bool
-    , pressed : List KeyCode
     , oscillators : List Oscillator
     }
 
@@ -30,15 +27,13 @@ init audioSupported =
     in
         ( { keys = keysModel
           , audioSupported = audioSupported
-          , playing = False
-          , pressed = []
           , oscillators =
                 [ { defaultOscillator
                     | volume = 50
-                    , octave = 2
+                    , octave = 0
                   }
                 , { shape = Triangle
-                  , octave = 5
+                  , octave = 2
                   , volume = 12
                   , fadeOutPeriod = 1
                   }
@@ -49,7 +44,7 @@ init audioSupported =
 
 
 type Msg
-    = ChangeOctave Int Octave
+    = ChangeOctaveDelta Int OctaveDelta
     | ChangeVolume Int Volume
     | ChangeShape Int Shape
     | KeysMsg Keys.Msg
@@ -67,8 +62,8 @@ passToOscillators oscillators note =
     List.filterMap (passToOscillator note) oscillators
 
 
-makeSound : List Oscillator -> List Keys.Note -> Cmd Msg
-makeSound oscillators notes =
+connectChain : List Oscillator -> List Keys.Note -> Cmd Msg
+connectChain oscillators notes =
     notes
         |> List.concatMap (passToOscillators oscillators)
         |> Sound.startPlaying
@@ -86,11 +81,11 @@ update msg model =
                 , Cmd.batch
                     [ Cmd.map KeysMsg keysCmd
                     , Keys.getNotes keysModel
-                        |> makeSound model.oscillators
+                        |> connectChain model.oscillators
                     ]
                 )
 
-        ChangeOctave index octave ->
+        ChangeOctaveDelta index octave ->
             let
                 changeOctave oscillator =
                     { oscillator | octave = octave }
@@ -102,7 +97,7 @@ update msg model =
                     | oscillators = newOscillators
                   }
                 , Keys.getNotes model.keys
-                    |> makeSound newOscillators
+                    |> connectChain newOscillators
                 )
 
         ChangeVolume index volume ->
@@ -117,7 +112,7 @@ update msg model =
                     | oscillators = newOscillators
                   }
                 , Keys.getNotes model.keys
-                    |> makeSound newOscillators
+                    |> connectChain newOscillators
                 )
 
         ChangeShape index shape ->
@@ -132,7 +127,7 @@ update msg model =
                     | oscillators = newOscillators
                   }
                 , Keys.getNotes model.keys
-                    |> makeSound newOscillators
+                    |> connectChain newOscillators
                 )
 
         NoOp ->
@@ -188,7 +183,7 @@ octaveChangeView index oscillator =
         , input
             [ Html.Attributes.type_ "number"
             , value <| toString oscillator.octave
-            , FormHelpers.onIntInput (ChangeOctave index)
+            , FormHelpers.onIntInput (ChangeOctaveDelta index)
             ]
             []
         ]
