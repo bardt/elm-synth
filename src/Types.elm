@@ -33,7 +33,6 @@ type alias Volume =
 type alias SoundDescriptor =
     { shape : String
     , frequency : Frequency
-    , octave : Octave
     , volume : Volume
     , fadeOutPeriod : Time.Time
     }
@@ -68,6 +67,5 @@ makeSoundDescriptor f o =
     SoundDescriptor
         (serializeShape o.shape)
         f
-        o.octave
         o.volume
         o.fadeOutPeriod

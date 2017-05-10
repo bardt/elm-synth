@@ -7,43 +7,222 @@ import String exposing (join)
 import Svg exposing (Svg, g, polygon, svg)
 import Svg.Attributes exposing (points, fill)
 import Types exposing (..)
+import Html exposing (program)
+import List.Extra exposing (findIndex)
+import Html.Events
+import Keyboard exposing (KeyCode, downs, ups)
 
 
-view : Html msg
-view =
+type alias Key =
+    { pressed : Bool
+    , note : Note
+    }
+
+
+type Letter
+    = C
+    | D
+    | E
+    | F
+    | G
+    | A
+    | B
+
+
+letters : List Letter
+letters =
+    [ C, D, E, F, G, A, B ]
+
+
+type alias Note =
+    { letter : Letter
+    , type_ : NoteType
+    , octave : Octave
+    }
+
+
+type NoteType
+    = Natural
+    | Sharp
+
+
+type alias Octave =
+    Int
+
+
+type alias Model =
+    { keys : List Key
+    , octave : Octave
+    }
+
+
+keys : Octave -> List Key
+keys oct =
     let
-        whiteKeys =
-            List.range 0 6
-                |> List.map2 (\f index -> f (whiteWidth * index))
-                    [ whiteKeyView Left
-                    , whiteKeyView Middle
-                    , whiteKeyView Right
-                    , whiteKeyView Left
-                    , whiteKeyView Middle
-                    , whiteKeyView Middle
-                    , whiteKeyView Right
-                    ]
-
-        blackKeys =
-            (List.range 0 1
-                |> List.map
-                    (\index ->
-                        blackKeyView (whiteWidth - round (toFloat blackWidth / 2) + index * whiteWidth)
-                    )
-            )
-                ++ (List.range 0 2
-                        |> List.map
-                            (\index ->
-                                blackKeyView (whiteWidth - round (toFloat blackWidth / 2) + (index + 3) * whiteWidth)
-                            )
-                   )
-    in
-        svg
-            []
-            [ g
-                []
-                (whiteKeys ++ blackKeys)
+        notes =
+            [ Note C Natural oct
+            , Note C Sharp oct
+            , Note D Natural oct
+            , Note D Sharp oct
+            , Note E Natural oct
+            , Note F Natural oct
+            , Note F Sharp oct
+            , Note G Natural oct
+            , Note G Sharp oct
+            , Note A Natural oct
+            , Note A Sharp oct
+            , Note B Natural oct
+            , Note C Natural (oct + 1)
+            , Note C Sharp (oct + 1)
+            , Note D Natural (oct + 1)
+            , Note D Sharp (oct + 1)
+            , Note E Natural (oct + 1)
             ]
+    in
+        List.map (Key False) notes
+
+
+initModel : Model
+initModel =
+    let
+        octave =
+            4
+    in
+        { keys = keys octave
+        , octave = octave
+        }
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( initModel, Cmd.none )
+
+
+type Msg
+    = KeyPressed Key
+    | KeyReleased Key
+    | NoOp
+
+
+main : Program Never Model Msg
+main =
+    program
+        { view = view
+        , init = init
+        , update = update
+        , subscriptions = subscriptions
+        }
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        NoOp ->
+            ( model, Cmd.none )
+
+        KeyPressed key ->
+            ( { model
+                | keys =
+                    List.map
+                        (\k ->
+                            if k.note == key.note then
+                                { k | pressed = True }
+                            else
+                                k
+                        )
+                        model.keys
+              }
+            , Cmd.none
+            )
+
+        KeyReleased key ->
+            ( { model
+                | keys =
+                    List.map
+                        (\k ->
+                            if k.note == key.note then
+                                { k | pressed = False }
+                            else
+                                k
+                        )
+                        model.keys
+              }
+            , Cmd.none
+            )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    let
+        codeToKey =
+            List.map2 (\code key -> ( code, key )) [ 65, 87, 83, 69, 68, 70, 84, 71, 89, 72, 85, 74, 75, 79, 76, 80, 186 ] model.keys
+                |> Dict.fromList
+
+        onKeyDown : KeyCode -> Msg
+        onKeyDown code =
+            Dict.get code codeToKey
+                |> Maybe.map KeyPressed
+                |> Maybe.withDefault NoOp
+
+        onKeyUp : KeyCode -> Msg
+        onKeyUp code =
+            Dict.get code codeToKey
+                |> Maybe.map KeyReleased
+                |> Maybe.withDefault NoOp
+    in
+        Sub.batch [ downs onKeyDown, ups onKeyUp ]
+
+
+view : Model -> Html Msg
+view model =
+    svg
+        []
+        [ g
+            []
+            (keysViews
+                model
+            )
+        ]
+
+
+keysViews : { a | keys : List Key, octave : Int } -> List (Svg Msg)
+keysViews model =
+    model.keys
+        |> List.filterMap
+            (\k ->
+                if k.note.type_ == Natural then
+                    let
+                        keyViewBuilder =
+                            case k.note.letter of
+                                C ->
+                                    whiteKeyView k Left
+
+                                D ->
+                                    whiteKeyView k Middle
+
+                                E ->
+                                    whiteKeyView k Right
+
+                                F ->
+                                    whiteKeyView k Left
+
+                                G ->
+                                    whiteKeyView k Middle
+
+                                A ->
+                                    whiteKeyView k Middle
+
+                                B ->
+                                    whiteKeyView k Right
+                    in
+                        findIndex ((==) k.note.letter) letters
+                            |> Maybe.map (\index -> whiteWidth * index + whiteWidth * 7 * (k.note.octave - model.octave))
+                            |> Maybe.map keyViewBuilder
+                else
+                    findIndex ((==) k.note.letter) letters
+                        |> Maybe.map (\index -> whiteWidth * (index + 1) - round (toFloat blackWidth / 2) + whiteWidth * 7 * (k.note.octave - model.octave))
+                        |> Maybe.map (blackKeyView k)
+            )
 
 
 type WhiteKeyType
@@ -77,8 +256,8 @@ pointToString point =
     toString (Tuple.first point) ++ "," ++ toString (Tuple.second point)
 
 
-whiteKeyView : WhiteKeyType -> Int -> Svg msg
-whiteKeyView keyType translate =
+whiteKeyView : Key -> WhiteKeyType -> Int -> Svg Msg
+whiteKeyView key keyType translate =
     let
         pointsSource =
             [ ( 0, blackHeight )
@@ -115,17 +294,25 @@ whiteKeyView keyType translate =
         polygon
             [ Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)"
             , Svg.Attributes.stroke "black"
-            , fill "yellow"
+            , fill
+                (if key.pressed then
+                    "red"
+                 else
+                    "yellow"
+                )
             , pointsSource
                 |> List.map pointToString
                 |> join " "
                 |> points
+            , Html.Events.onMouseDown (KeyPressed key)
+            , Html.Events.onMouseUp (KeyReleased key)
+            , Html.Events.onMouseLeave (KeyReleased key)
             ]
             []
 
 
-blackKeyView : Int -> Svg msg
-blackKeyView translate =
+blackKeyView : Key -> Int -> Svg Msg
+blackKeyView key translate =
     let
         pointsSource =
             [ ( 0, 0 )
@@ -135,74 +322,49 @@ blackKeyView translate =
             ]
     in
         polygon
-            [ fill "grey"
+            [ fill
+                (if key.pressed then
+                    "red"
+                 else
+                    "grey"
+                )
             , Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)"
             , pointsSource
                 |> List.map pointToString
                 |> join " "
                 |> points
+            , Html.Events.onMouseDown (KeyPressed key)
+            , Html.Events.onMouseUp (KeyReleased key)
+            , Html.Events.onMouseLeave (KeyReleased key)
             ]
             []
 
 
-keyToNoteMapping : Dict.Dict KeyCode Note
-keyToNoteMapping =
-    Dict.fromList
-        [ ( 65, "C" )
-        , ( 87, "C#" )
-        , ( 83, "D" )
-        , ( 69, "Eb" )
-        , ( 68, "E" )
-        , ( 70, "F" )
-        , ( 84, "F#" )
-        , ( 71, "G" )
-        , ( 89, "G#" )
-        , ( 72, "A" )
-        , ( 85, "Bb" )
-        , ( 74, "B" )
-        , ( 75, "C+" )
-        , ( 79, "C#+" )
-        , ( 76, "D+" )
-        , ( 80, "D#+" )
-        , ( 186, "E+" )
-        ]
-
-
-noteToFrequencyMapping : Dict.Dict Note Frequency
+noteToFrequencyMapping : List ( ( Letter, NoteType ), Frequency )
 noteToFrequencyMapping =
-    Dict.fromList
-        [ ( "C", 16.35 )
-        , ( "C#", 17.32 )
-        , ( "D", 18.35 )
-        , ( "Eb", 19.45 )
-        , ( "E", 20.6 )
-        , ( "F", 21.83 )
-        , ( "F#", 23.12 )
-        , ( "G", 24.5 )
-        , ( "G#", 25.96 )
-        , ( "A", 27.5 )
-        , ( "Bb", 29.14 )
-        , ( "B", 30.87 )
-        , ( "C+", 16.35 * 2 )
-        , ( "C#+", 17.32 * 2 )
-        , ( "D+", 18.35 * 2 )
-        , ( "D#+", 19.45 * 2 )
-        , ( "E+", 20.6 * 2 )
-        ]
+    [ ( ( C, Natural ), 16.35 )
+    , ( ( C, Sharp ), 17.32 )
+    , ( ( D, Natural ), 18.35 )
+    , ( ( D, Sharp ), 19.45 )
+    , ( ( E, Natural ), 20.6 )
+    , ( ( F, Natural ), 21.83 )
+    , ( ( F, Sharp ), 23.12 )
+    , ( ( G, Natural ), 24.5 )
+    , ( ( G, Sharp ), 25.96 )
+    , ( ( A, Natural ), 27.5 )
+    , ( ( A, Sharp ), 29.14 )
+    , ( ( B, Natural ), 30.87 )
+    ]
 
 
-keyToNote : KeyCode -> Maybe Note
-keyToNote keyCode =
-    Dict.get keyCode keyToNoteMapping
+noteToFrequency : Note -> Int -> Maybe Frequency
+noteToFrequency note octaveDelta =
+    List.Extra.find (\( n, _ ) -> n == ( note.letter, note.type_ )) noteToFrequencyMapping
+        |> Maybe.map (\x -> (Tuple.second x) * (toFloat (2 ^ (note.octave + octaveDelta))))
 
 
-noteToFrequency : Note -> Maybe Frequency
-noteToFrequency note =
-    Dict.get note noteToFrequencyMapping
-
-
-keyToFrequency : KeyCode -> Maybe Frequency
-keyToFrequency key =
-    key
-        |> keyToNote
-        |> Maybe.andThen noteToFrequency
+getNotes : Model -> List Note
+getNotes model =
+    model.keys
+        |> List.filter (.pressed)
+        |> List.map (.note)

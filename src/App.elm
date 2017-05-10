@@ -6,17 +6,16 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Keyboard exposing (KeyCode, downs, ups)
-import Keys exposing (keyToFrequency)
-import List.Extra exposing (unique)
+import Keys
 import Platform.Sub exposing (batch)
 import Shape
 import Sound
-import Toolkit.Helpers exposing (maybeList)
 import Types exposing (..)
 
 
 type alias Model =
     { audioSupported : Bool
+    , keys : Keys.Model
     , playing : Bool
     , pressed : List KeyCode
     , oscillators : List Oscillator
@@ -25,72 +24,70 @@ type alias Model =
 
 init : Bool -> ( Model, Cmd Msg )
 init audioSupported =
-    ( { audioSupported = audioSupported
-      , playing = False
-      , pressed = []
-      , oscillators =
-            [ { defaultOscillator
-                | volume = 50
-                , octave = 2
-              }
-            , { shape = Triangle
-              , octave = 5
-              , volume = 12
-              , fadeOutPeriod = 1
-              }
-            ]
-      }
-    , Cmd.none
-    )
+    let
+        ( keysModel, keysCmd ) =
+            Keys.init
+    in
+        ( { keys = keysModel
+          , audioSupported = audioSupported
+          , playing = False
+          , pressed = []
+          , oscillators =
+                [ { defaultOscillator
+                    | volume = 50
+                    , octave = 2
+                  }
+                , { shape = Triangle
+                  , octave = 5
+                  , volume = 12
+                  , fadeOutPeriod = 1
+                  }
+                ]
+          }
+        , Cmd.map KeysMsg keysCmd
+        )
 
 
 type Msg
-    = Keydown KeyCode
-    | Keyup KeyCode
-    | ChangeOctave Int Octave
+    = ChangeOctave Int Octave
     | ChangeVolume Int Volume
     | ChangeShape Int Shape
+    | KeysMsg Keys.Msg
     | NoOp
 
 
-makeSound : List KeyCode -> List Oscillator -> Cmd Msg
-makeSound keys oscillators =
-    let
-        soundDescriptors : List Oscillator -> List Frequency -> List SoundDescriptor
-        soundDescriptors oscillators freqs =
-            List.concatMap (\f -> List.map (makeSoundDescriptor f) oscillators) freqs
-    in
-        keys
-            |> List.map keyToFrequency
-            |> maybeList
-            |> Maybe.map (soundDescriptors oscillators)
-            |> Maybe.map Sound.startPlaying
-            |> Maybe.withDefault Cmd.none
+passToOscillator : Keys.Note -> Oscillator -> Maybe SoundDescriptor
+passToOscillator note oscillator =
+    Keys.noteToFrequency note oscillator.octave
+        |> Maybe.map (\x -> makeSoundDescriptor x oscillator)
+
+
+passToOscillators : List Oscillator -> Keys.Note -> List SoundDescriptor
+passToOscillators oscillators note =
+    List.filterMap (passToOscillator note) oscillators
+
+
+makeSound : List Oscillator -> List Keys.Note -> Cmd Msg
+makeSound oscillators notes =
+    notes
+        |> List.concatMap (passToOscillators oscillators)
+        |> Sound.startPlaying
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Keydown key ->
+        KeysMsg msg ->
             let
-                keysPressed =
-                    unique (key :: model.pressed)
+                ( keysModel, keysCmd ) =
+                    Keys.update msg model.keys
             in
-                ( { model
-                    | pressed = keysPressed
-                  }
-                , makeSound keysPressed model.oscillators
-                )
-
-        Keyup key ->
-            let
-                keysPressed =
-                    List.filter (\k -> k /= key) model.pressed
-            in
-                ( { model
-                    | pressed = keysPressed
-                  }
-                , makeSound keysPressed model.oscillators
+                ( { model | keys = keysModel }
+                , Cmd.batch
+                    [ Cmd.map KeysMsg keysCmd
+                    , Keys.getNotes keysModel
+                        |> makeSound model.oscillators
+                    ]
                 )
 
         ChangeOctave index octave ->
@@ -104,7 +101,8 @@ update msg model =
                 ( { model
                     | oscillators = newOscillators
                   }
-                , makeSound model.pressed newOscillators
+                , Keys.getNotes model.keys
+                    |> makeSound newOscillators
                 )
 
         ChangeVolume index volume ->
@@ -118,7 +116,8 @@ update msg model =
                 ( { model
                     | oscillators = newOscillators
                   }
-                , makeSound model.pressed newOscillators
+                , Keys.getNotes model.keys
+                    |> makeSound newOscillators
                 )
 
         ChangeShape index shape ->
@@ -132,7 +131,8 @@ update msg model =
                 ( { model
                     | oscillators = newOscillators
                   }
-                , makeSound model.pressed newOscillators
+                , Keys.getNotes model.keys
+                    |> makeSound newOscillators
                 )
 
         NoOp ->
@@ -157,7 +157,10 @@ view model =
         (if not model.audioSupported then
             [ text "Audio NOT supported" ]
          else
-            Keys.view :: List.indexedMap oscillatorView model.oscillators
+            (Html.map KeysMsg <|
+                Keys.view model.keys
+            )
+                :: List.indexedMap oscillatorView model.oscillators
         )
 
 
@@ -242,4 +245,4 @@ shapeSelectView index oscillator =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    batch [ downs Keydown, ups Keyup ]
+    Sub.map KeysMsg (Keys.subscriptions model.keys)

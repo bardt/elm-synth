@@ -44,7 +44,7 @@ if (audioSupported) {
   function configureDevice(device, descriptor) {
     device.descriptor = descriptor;
 
-    device.o.frequency.value =  descriptor.frequency * Math.pow(2, descriptor.octave);
+    device.o.frequency.value =  descriptor.frequency;
     device.o.type = descriptor.shape;
 
     device.g.gain.setValueAtTime(descriptor.volume / 100, context.currentTime);
