@@ -1,6 +1,22 @@
 module Types exposing (..)
 
 import Time
+import Keys.Types as KeysTypes
+
+
+type alias Model =
+    { audioSupported : Bool
+    , keys : KeysTypes.Model
+    , oscillators : List Oscillator
+    }
+
+
+type Msg
+    = ChangeOctaveDelta Int OctaveDelta
+    | ChangeVolume Int Volume
+    | ChangeShape Int Shape
+    | KeysMsg KeysTypes.Msg
+    | NoOp
 
 
 type Shape
@@ -15,7 +31,11 @@ type alias OctaveDelta =
 
 
 type alias Frequency =
-    Float
+    KeysTypes.Frequency
+
+
+type alias Note =
+    KeysTypes.Note
 
 
 type alias Oscillator =
@@ -38,26 +58,10 @@ type alias SoundDescriptor =
     }
 
 
-serializeShape : Shape -> String
-serializeShape shape =
-    case shape of
-        Sine ->
-            "sine"
-
-        Square ->
-            "square"
-
-        Triangle ->
-            "triangle"
-
-        Sawtooth ->
-            "sawtooth"
-
-
 makeSoundDescriptor : Frequency -> Oscillator -> SoundDescriptor
 makeSoundDescriptor f o =
     SoundDescriptor
-        (serializeShape o.shape)
+        (toString o.shape)
         f
         o.volume
         o.fadeOutPeriod

@@ -1,29 +1,16 @@
 module App exposing (..)
 
-import FormHelpers
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (on, onClick, onInput, targetValue)
-import Json.Decode as Json
-import Keys
 import Platform.Sub exposing (batch)
-import Shape
 import Sound
 import Types exposing (..)
-
-
-type alias Model =
-    { audioSupported : Bool
-    , keys : Keys.Model
-    , oscillators : List Oscillator
-    }
+import Keys.State as KeysState
 
 
 init : Bool -> ( Model, Cmd Msg )
 init audioSupported =
     let
         ( keysModel, keysCmd ) =
-            Keys.init
+            KeysState.init
     in
         ( { keys = keysModel
           , audioSupported = audioSupported
@@ -43,26 +30,23 @@ init audioSupported =
         )
 
 
-type Msg
-    = ChangeOctaveDelta Int OctaveDelta
-    | ChangeVolume Int Volume
-    | ChangeShape Int Shape
-    | KeysMsg Keys.Msg
-    | NoOp
+defaultOscillator : Oscillator
+defaultOscillator =
+    { shape = Sine, volume = 100, octave = 3, fadeOutPeriod = 0.5 }
 
 
-passToOscillator : Keys.Note -> Oscillator -> Maybe SoundDescriptor
+passToOscillator : Note -> Oscillator -> Maybe SoundDescriptor
 passToOscillator note oscillator =
-    Keys.noteToFrequency note oscillator.octave
+    KeysState.noteToFrequency note oscillator.octave
         |> Maybe.map (\x -> makeSoundDescriptor x oscillator)
 
 
-passToOscillators : List Oscillator -> Keys.Note -> List SoundDescriptor
+passToOscillators : List Oscillator -> Note -> List SoundDescriptor
 passToOscillators oscillators note =
     List.filterMap (passToOscillator note) oscillators
 
 
-connectChain : List Oscillator -> List Keys.Note -> Cmd Msg
+connectChain : List Oscillator -> List Note -> Cmd Msg
 connectChain oscillators notes =
     notes
         |> List.concatMap (passToOscillators oscillators)
@@ -75,12 +59,12 @@ update msg model =
         KeysMsg msg ->
             let
                 ( keysModel, keysCmd ) =
-                    Keys.update msg model.keys
+                    KeysState.update msg model.keys
             in
                 ( { model | keys = keysModel }
                 , Cmd.batch
                     [ Cmd.map KeysMsg keysCmd
-                    , Keys.getNotes keysModel
+                    , KeysState.getNotes keysModel
                         |> connectChain model.oscillators
                     ]
                 )
@@ -96,7 +80,7 @@ update msg model =
                 ( { model
                     | oscillators = newOscillators
                   }
-                , Keys.getNotes model.keys
+                , KeysState.getNotes model.keys
                     |> connectChain newOscillators
                 )
 
@@ -111,7 +95,7 @@ update msg model =
                 ( { model
                     | oscillators = newOscillators
                   }
-                , Keys.getNotes model.keys
+                , KeysState.getNotes model.keys
                     |> connectChain newOscillators
                 )
 
@@ -126,7 +110,7 @@ update msg model =
                 ( { model
                     | oscillators = newOscillators
                   }
-                , Keys.getNotes model.keys
+                , KeysState.getNotes model.keys
                     |> connectChain newOscillators
                 )
 
@@ -146,98 +130,6 @@ updateOscillatorAtIndex index update oscillators =
         oscillators
 
 
-view : Model -> Html Msg
-view model =
-    div []
-        (if not model.audioSupported then
-            [ text "Audio NOT supported" ]
-         else
-            (Html.map KeysMsg <|
-                Keys.view model.keys
-            )
-                :: List.indexedMap oscillatorView model.oscillators
-        )
-
-
-defaultOscillator : Oscillator
-defaultOscillator =
-    { shape = Sine, volume = 100, octave = 3, fadeOutPeriod = 0.5 }
-
-
-oscillatorView : Int -> Oscillator -> Html Msg
-oscillatorView index o =
-    Html.form []
-        [ div []
-            [ octaveChangeView index o ]
-        , div []
-            [ volumeChangeView index o ]
-        , div []
-            [ shapeSelectView index o ]
-        ]
-
-
-octaveChangeView : Int -> Oscillator -> Html Msg
-octaveChangeView index oscillator =
-    label []
-        [ text "Octave: "
-        , input
-            [ Html.Attributes.type_ "number"
-            , value <| toString oscillator.octave
-            , FormHelpers.onIntInput (ChangeOctaveDelta index)
-            ]
-            []
-        ]
-
-
-volumeChangeView : Int -> Oscillator -> Html Msg
-volumeChangeView index oscillator =
-    label []
-        [ text "Volume: "
-        , input
-            [ Html.Attributes.type_ "range"
-            , Html.Attributes.min "0"
-            , Html.Attributes.max "100"
-            , Html.Attributes.value <| toString oscillator.volume
-            , FormHelpers.onIntInput (ChangeVolume index)
-            ]
-            []
-        , input
-            [ type_ "number"
-            , FormHelpers.onIntInput (ChangeVolume index)
-            , Html.Attributes.value <| toString oscillator.volume
-            ]
-            []
-        ]
-
-
-shapeSelectView : Int -> Oscillator -> Html Msg
-shapeSelectView index oscillator =
-    let
-        shapeDecoder : String -> Json.Decoder Shape
-        shapeDecoder string =
-            case (Shape.fromString string) of
-                Ok shape ->
-                    Json.succeed shape
-
-                Err message ->
-                    Json.fail message
-
-        onChange : (Shape -> Msg) -> Attribute Msg
-        onChange tagger =
-            on "input"
-                (targetValue
-                    |> Json.andThen shapeDecoder
-                    |> Json.map tagger
-                )
-    in
-        select [ onChange (ChangeShape index) ]
-            [ option [ value (toString Sine), selected (oscillator.shape == Sine) ] [ text "Sine" ]
-            , option [ value (toString Triangle), selected (oscillator.shape == Triangle) ] [ text "Triangle" ]
-            , option [ value (toString Square), selected (oscillator.shape == Square) ] [ text "Square" ]
-            , option [ value (toString Sawtooth), selected (oscillator.shape == Sawtooth) ] [ text "Sawtooth" ]
-            ]
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.map KeysMsg (Keys.subscriptions model.keys)
+    Sub.map KeysMsg (KeysState.subscriptions model.keys)
