@@ -245,7 +245,7 @@ whiteHeight =
 
 blackWidth : Int
 blackWidth =
-    15
+    20
 
 
 blackHeight : Int
@@ -261,6 +261,20 @@ gapSize =
 pointToString : ( Int, Int ) -> String
 pointToString point =
     toString (Tuple.first point) ++ "," ++ toString (Tuple.second point)
+
+
+noteToString : Note -> String
+noteToString note =
+    let
+        typeToString type_ =
+            case type_ of
+                Sharp ->
+                    "#"
+
+                Natural ->
+                    ""
+    in
+        toString note.letter ++ typeToString note.type_ ++ toString note.octave
 
 
 whiteKeyView : Key -> WhiteKeyType -> Int -> Svg Msg
@@ -298,24 +312,33 @@ whiteKeyView key keyType translate =
                             [ ( round (toFloat blackWidth / 2) + gapSize, blackHeight + gapSize ) ]
                    )
     in
-        polygon
-            [ Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)"
-            , Svg.Attributes.stroke "black"
-            , fill
-                (if key.pressed then
-                    "red"
-                 else
-                    "yellow"
-                )
-            , pointsSource
-                |> List.map pointToString
-                |> join " "
-                |> points
-            , Html.Events.onMouseDown (KeyPressed key)
-            , Html.Events.onMouseUp (KeyReleased key)
-            , Html.Events.onMouseLeave (KeyReleased key)
+        g [ Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)" ]
+            [ polygon
+                [ Svg.Attributes.stroke "black"
+                , fill
+                    (if key.pressed then
+                        "red"
+                     else
+                        "yellow"
+                    )
+                , pointsSource
+                    |> List.map pointToString
+                    |> join " "
+                    |> points
+                , Html.Events.onMouseDown (KeyPressed key)
+                , Html.Events.onMouseUp (KeyReleased key)
+                , Html.Events.onMouseLeave (KeyReleased key)
+                ]
+                []
+            , Svg.text_
+                [ Svg.Attributes.fill "black"
+                , Svg.Attributes.fontSize <| toString <| whiteWidth // 2
+                , Svg.Attributes.y <| toString <| whiteHeight - gapSize * 4
+                , Svg.Attributes.x <| toString <| gapSize * 2
+                ]
+                [ Svg.text <| noteToString key.note
+                ]
             ]
-            []
 
 
 blackKeyView : Key -> Int -> Svg Msg
@@ -328,23 +351,32 @@ blackKeyView key translate =
             , ( blackWidth - gapSize, 0 )
             ]
     in
-        polygon
-            [ fill
-                (if key.pressed then
-                    "red"
-                 else
-                    "grey"
-                )
-            , Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)"
-            , pointsSource
-                |> List.map pointToString
-                |> join " "
-                |> points
-            , Html.Events.onMouseDown (KeyPressed key)
-            , Html.Events.onMouseUp (KeyReleased key)
-            , Html.Events.onMouseLeave (KeyReleased key)
+        g [ Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)" ]
+            [ polygon
+                [ fill
+                    (if key.pressed then
+                        "red"
+                     else
+                        "grey"
+                    )
+                , pointsSource
+                    |> List.map pointToString
+                    |> join " "
+                    |> points
+                , Html.Events.onMouseDown (KeyPressed key)
+                , Html.Events.onMouseUp (KeyReleased key)
+                , Html.Events.onMouseLeave (KeyReleased key)
+                ]
+                []
+            , Svg.text_
+                [ Svg.Attributes.fill "white"
+                , Svg.Attributes.fontSize <| toString <| blackWidth // 2
+                , Svg.Attributes.y <| toString <| blackHeight - gapSize * 4
+                , Svg.Attributes.x <| toString <| gapSize * 2
+                ]
+                [ Svg.text <| noteToString key.note
+                ]
             ]
-            []
 
 
 noteToFrequencyMapping : List ( ( Letter, NoteType ), Frequency )
