@@ -1,9 +1,10 @@
 module App exposing (..)
 
+import Json.Decode
+import Keys.State as KeysState
 import Platform.Sub exposing (batch)
 import Sound
 import Types exposing (..)
-import Keys.State as KeysState
 
 
 init : Bool -> ( Model, Cmd Msg )
@@ -25,6 +26,7 @@ init audioSupported =
                   , fadeOutPeriod = 1
                   }
                 ]
+          , analyzerData = []
           }
         , Cmd.map KeysMsg keysCmd
         )
@@ -114,6 +116,9 @@ update msg model =
                     |> connectChain newOscillators
                 )
 
+        UpdateAnalyzerData data ->
+            ( { model | analyzerData = data }, Cmd.none )
+
         NoOp ->
             ( model, Cmd.none )
 
@@ -132,4 +137,15 @@ updateOscillatorAtIndex index update oscillators =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.map KeysMsg (KeysState.subscriptions model.keys)
+    Sub.batch
+        [ Sub.map KeysMsg (KeysState.subscriptions model.keys)
+        , Sound.updateAnalyzer
+            (\str ->
+                case Json.Decode.decodeString decodeAnalyzerData str of
+                    Ok data ->
+                        UpdateAnalyzerData data
+
+                    Err str ->
+                        NoOp
+            )
+        ]

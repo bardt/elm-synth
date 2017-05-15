@@ -14,10 +14,28 @@ var app = Elm.Main.embed(root, audioSupported);
 // and https://www.html5rocks.com/en/tutorials/webaudio/intro/
 if (audioSupported) {
   var context = new AudioContext();
-  var gainNode;
+
+  var merger = context.createChannelMerger()
+
+
+  var analyser = context.createAnalyser();
+  analyser.fftSize = 2048;
+  var bufferLength = analyser.frequencyBinCount;
+  var dataArray = new Uint8Array(bufferLength);
+
+  function updateAnalyzer() {
+    analyser.getByteTimeDomainData(dataArray);
+
+    // analyser.getByteFrequencyData(dataArray);
+    app.ports.updateAnalyzer.send(JSON.stringify([].slice.call(dataArray)));
+    requestAnimationFrame(updateAnalyzer);
+  }
+  updateAnalyzer();
+
+  merger.connect(analyser);
+  analyser.connect(context.destination);
 
   var devices = {};
-
 
   function Device() {
     this.o = context.createOscillator(),
@@ -30,7 +48,7 @@ if (audioSupported) {
   }
 
   function connectDevice(d) {
-    d.g.connect(context.destination);
+    d.g.connect(merger);
     d.o.connect(d.g);
     return d;
   }
@@ -45,7 +63,7 @@ if (audioSupported) {
     device.descriptor = descriptor;
 
     device.o.frequency.value =  descriptor.frequency;
-    device.o.type = descriptor.shape;
+    device.o.type = descriptor.shape.toLowerCase();
 
     device.g.gain.setValueAtTime(descriptor.volume / 100, context.currentTime);
 
