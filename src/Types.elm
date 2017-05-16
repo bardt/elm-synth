@@ -11,6 +11,7 @@ type alias Model =
     , keys : KeysTypes.Model
     , oscillators : List Oscillator
     , analyzerData : AnalyzerData
+    , analyzerEnabled : Bool
     }
 
 

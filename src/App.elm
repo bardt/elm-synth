@@ -15,6 +15,7 @@ init audioSupported =
     in
         ( { keys = keysModel
           , audioSupported = audioSupported
+          , analyzerEnabled = False
           , oscillators =
                 [ { defaultOscillator
                     | volume = 50
@@ -137,15 +138,24 @@ updateOscillatorAtIndex index update oscillators =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Sub.map KeysMsg (KeysState.subscriptions model.keys)
-        , Sound.updateAnalyzer
-            (\str ->
-                case Json.Decode.decodeString decodeAnalyzerData str of
-                    Ok data ->
-                        UpdateAnalyzerData data
+    let
+        analyzerSubscription =
+            Sound.updateAnalyzer
+                (\str ->
+                    case Json.Decode.decodeValue decodeAnalyzerData str of
+                        Ok data ->
+                            UpdateAnalyzerData data
 
-                    Err str ->
-                        NoOp
-            )
-        ]
+                        Err str ->
+                            NoOp
+                )
+    in
+        Sub.batch <|
+            List.filterMap identity
+                [ Just <| Sub.map KeysMsg (KeysState.subscriptions model.keys)
+                , (if model.analyzerEnabled then
+                    Just analyzerSubscription
+                   else
+                    Nothing
+                  )
+                ]

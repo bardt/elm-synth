@@ -27,7 +27,7 @@ if (audioSupported) {
     analyser.getByteTimeDomainData(dataArray);
 
     // analyser.getByteFrequencyData(dataArray);
-    app.ports.updateAnalyzer.send(JSON.stringify([].slice.call(dataArray)));
+    app.ports.updateAnalyzer.send([].slice.call(dataArray));
     requestAnimationFrame(updateAnalyzer);
   }
   updateAnalyzer();
