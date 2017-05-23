@@ -57,20 +57,18 @@ connectChain oscillators notes =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ oscillators } as model) =
     case msg of
         KeysMsg msg ->
             let
                 ( keysModel, keysCmd ) =
                     KeysState.update msg model.keys
             in
-                ( { model | keys = keysModel }
-                , Cmd.batch
-                    [ Cmd.map KeysMsg keysCmd
-                    , KeysState.getNotes keysModel
-                        |> connectChain model.oscillators
-                    ]
-                )
+                { model | keys = keysModel }
+                    ! [ Cmd.map KeysMsg keysCmd
+                      , KeysState.getNotes keysModel
+                            |> connectChain oscillators
+                      ]
 
         ChangeOctaveDelta index octave ->
             let
@@ -78,7 +76,7 @@ update msg model =
                     { oscillator | octave = octave }
 
                 newOscillators =
-                    updateOscillatorAtIndex index changeOctave model.oscillators
+                    updateOscillatorAtIndex index changeOctave oscillators
             in
                 ( { model
                     | oscillators = newOscillators
@@ -93,7 +91,7 @@ update msg model =
                     { oscillator | volume = volume }
 
                 newOscillators =
-                    updateOscillatorAtIndex index changeVolume model.oscillators
+                    updateOscillatorAtIndex index changeVolume oscillators
             in
                 ( { model
                     | oscillators = newOscillators
@@ -108,7 +106,7 @@ update msg model =
                     { oscillator | shape = shape }
 
                 newOscillators =
-                    updateOscillatorAtIndex index changeShape model.oscillators
+                    updateOscillatorAtIndex index changeShape oscillators
             in
                 ( { model
                     | oscillators = newOscillators
@@ -118,10 +116,10 @@ update msg model =
                 )
 
         UpdateAnalyzerData data ->
-            ( { model | analyzerData = data }, Cmd.none )
+            { model | analyzerData = data } ! []
 
         NoOp ->
-            ( model, Cmd.none )
+            model ! []
 
 
 updateOscillatorAtIndex : Int -> (Oscillator -> Oscillator) -> List Oscillator -> List Oscillator

@@ -79,13 +79,13 @@ getNotes model =
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update msg ({ keys } as model) =
     case msg of
         NoOp ->
             ( model, Cmd.none )
 
         KeyPressed key ->
-            ( { model
+            { model
                 | keys =
                     List.map
                         (\k ->
@@ -94,13 +94,12 @@ update msg model =
                             else
                                 k
                         )
-                        model.keys
-              }
-            , Cmd.none
-            )
+                        keys
+            }
+                ! []
 
         KeyReleased key ->
-            ( { model
+            { model
                 | keys =
                     List.map
                         (\k ->
@@ -109,10 +108,9 @@ update msg model =
                             else
                                 k
                         )
-                        model.keys
-              }
-            , Cmd.none
-            )
+                        keys
+            }
+                ! []
 
 
 subscriptions : Model -> Sub Msg
