@@ -11,7 +11,7 @@ port updateAnalyzer : (Json.Decode.Value -> msg) -> Sub msg
 
 
 type Sound
-    = SoundNode String (List SoundProperty) (List Sound)
+    = SoundNode String String (List SoundProperty) (List Sound)
     | Silence
 
 
@@ -21,17 +21,17 @@ type alias SoundProperty =
 
 output : List Sound -> Sound
 output =
-    SoundNode "output" []
+    SoundNode "output" "output" []
 
 
-gain : List SoundProperty -> List Sound -> Sound
-gain =
-    SoundNode "gain"
+gain : String -> List SoundProperty -> List Sound -> Sound
+gain key =
+    SoundNode key "gain"
 
 
-oscillator : List SoundProperty -> List Sound -> Sound
-oscillator =
-    SoundNode "oscillator"
+oscillator : String -> List SoundProperty -> List Sound -> Sound
+oscillator key =
+    SoundNode key "oscillator"
 
 
 volume : Int -> ( String, String )
@@ -43,23 +43,19 @@ type alias SerializedSound =
     List ( String, ( String, String, List SoundProperty ) )
 
 
-internalSerializeSound : String -> Int -> Sound -> SerializedSound
-internalSerializeSound connectedTo index sound =
+internalSerializeSound : String -> Sound -> SerializedSound
+internalSerializeSound connectedTo sound =
     case sound of
-        SoundNode "output" _ connections ->
-            List.indexedMap (internalSerializeSound "output") connections
+        SoundNode "output" "output" _ connections ->
+            List.map (internalSerializeSound "output") connections
                 |> List.concat
 
-        SoundNode name props connections ->
-            let
-                key =
-                    String.join "_" [ connectedTo, name, toString index ]
-            in
-                ( key, ( name, connectedTo, props ) )
-                    :: (connections
-                            |> List.indexedMap (internalSerializeSound key)
-                            |> List.concat
-                       )
+        SoundNode key name props connections ->
+            ( key, ( name, connectedTo, props ) )
+                :: (connections
+                        |> List.map (internalSerializeSound key)
+                        |> List.concat
+                   )
 
         Silence ->
             []
@@ -67,7 +63,7 @@ internalSerializeSound connectedTo index sound =
 
 serializeSound : Sound -> SerializedSound
 serializeSound sound =
-    internalSerializeSound "" 0 sound
+    internalSerializeSound "" sound
 
 
 encodeSound : Sound -> Value

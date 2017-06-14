@@ -4,7 +4,6 @@ import Array
 import Json.Decode
 import Keys.State as KeysState
 import Keys.Types as KeysTypes
-import List.Extra
 import Platform.Sub exposing (batch)
 import Sound exposing (..)
 import Types exposing (..)
@@ -47,16 +46,16 @@ init audioSupported =
 renderSoundChain : List Track -> List KeysTypes.Note -> Sound
 renderSoundChain tracks notes =
     let
-        renderTrackSound track =
-            gain
+        renderTrackSound index track =
+            gain ("gain" ++ toString index)
                 [ ( "volume", toString track.gain.volume )
                 ]
             <|
-                List.map (renderOscillatorSound track) notes
+                List.map (renderOscillatorSound index track) notes
 
-        renderOscillatorSound : Track -> KeysTypes.Note -> Sound
-        renderOscillatorSound track note =
-            oscillator
+        renderOscillatorSound : Int -> Track -> KeysTypes.Note -> Sound
+        renderOscillatorSound trackNumber track note =
+            oscillator ("oscillator" ++ toString trackNumber ++ "_" ++ toString note)
                 (flatten
                     [ KeysState.noteToFrequency note track.oscillator.octaveDelta
                         |> Maybe.map (\f -> ( "frequency", toString f ))
@@ -69,7 +68,7 @@ renderSoundChain tracks notes =
             List.filterMap identity list
     in
         output <|
-            List.map renderTrackSound tracks
+            List.indexedMap renderTrackSound tracks
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
