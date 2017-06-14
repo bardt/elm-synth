@@ -4,14 +4,23 @@ import Time
 import Keys.Types as KeysTypes
 import Json.Encode
 import Json.Decode
+import Array
 
 
 type alias Model =
     { audioSupported : Bool
     , keys : KeysTypes.Model
-    , oscillators : List Oscillator
+    , tracks : Array.Array Track
     , analyzerData : AnalyzerData
     , analyzerEnabled : Bool
+    }
+
+
+type alias Track =
+    { gain :
+        { volume : Volume
+        }
+    , oscillator : Oscillator
     }
 
 
@@ -24,6 +33,12 @@ type Msg
     | NoOp
 
 
+type alias Oscillator =
+    { shape : Shape
+    , octaveDelta : OctaveDelta
+    }
+
+
 type Shape
     = Sine
     | Square
@@ -31,49 +46,16 @@ type Shape
     | Sawtooth
 
 
+type alias AnalyzerData =
+    List Int
+
+
 type alias OctaveDelta =
     Int
 
 
-type alias Frequency =
-    KeysTypes.Frequency
-
-
-type alias Note =
-    KeysTypes.Note
-
-
-type alias Oscillator =
-    { shape : Shape
-    , octave : OctaveDelta
-    , volume : Volume
-    , fadeOutPeriod : Time.Time
-    }
-
-
 type alias Volume =
     Int
-
-
-type alias SoundDescriptor =
-    { shape : String
-    , frequency : Frequency
-    , volume : Volume
-    , fadeOutPeriod : Time.Time
-    }
-
-
-makeSoundDescriptor : Frequency -> Oscillator -> SoundDescriptor
-makeSoundDescriptor f o =
-    SoundDescriptor
-        (toString o.shape)
-        f
-        o.volume
-        o.fadeOutPeriod
-
-
-type alias AnalyzerData =
-    List Int
 
 
 decodeAnalyzerData : Json.Decode.Decoder AnalyzerData
