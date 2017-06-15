@@ -11,6 +11,7 @@ import Shape
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import List.Extra
+import Array
 
 
 view : Model -> Html Msg
@@ -22,59 +23,58 @@ view model =
             (Html.map KeysMsg <|
                 KeysView.view model.keys
             )
-                :: analyzer model.analyzerData
-                :: List.indexedMap oscillatorView model.oscillators
+                :: List.indexedMap trackView (Array.toList model.tracks)
         )
 
 
-oscillatorView : Int -> Oscillator -> Html Msg
-oscillatorView index o =
+trackView : Int -> Track -> Html Msg
+trackView index track =
     Html.form []
         [ div []
-            [ octaveChangeView index o ]
+            [ octaveChangeView index track.oscillator.octaveDelta ]
         , div []
-            [ volumeChangeView index o ]
+            [ volumeChangeView index track.gain.volume ]
         , div []
-            [ shapeSelectView index o ]
+            [ shapeSelectView index track.oscillator.shape ]
         ]
 
 
-octaveChangeView : Int -> Oscillator -> Html Msg
-octaveChangeView index oscillator =
+octaveChangeView : Int -> Int -> Html Msg
+octaveChangeView index octaveDelta =
     label []
         [ Html.text "Octave: "
         , input
             [ Attrs.type_ "number"
-            , Attrs.value <| toString oscillator.octave
+            , Attrs.value <| toString octaveDelta
             , FormHelpers.onIntInput (ChangeOctaveDelta index)
             ]
             []
         ]
 
 
-volumeChangeView : Int -> Oscillator -> Html Msg
-volumeChangeView index oscillator =
+volumeChangeView : Int -> Int -> Html Msg
+volumeChangeView index volume =
     label []
         [ Html.text "Volume: "
         , input
             [ Attrs.type_ "range"
             , Attrs.min "0"
             , Attrs.max "100"
-            , Attrs.value <| toString oscillator.volume
+            , Attrs.value <| toString volume
             , FormHelpers.onIntInput (ChangeVolume index)
             ]
             []
         , input
             [ Attrs.type_ "number"
             , FormHelpers.onIntInput (ChangeVolume index)
-            , Attrs.value <| toString oscillator.volume
+            , Attrs.value <| toString volume
             ]
             []
         ]
 
 
-shapeSelectView : Int -> Oscillator -> Html Msg
-shapeSelectView index oscillator =
+shapeSelectView : Int -> Shape -> Html Msg
+shapeSelectView index shape =
     let
         shapeDecoder : String -> Json.Decoder Shape
         shapeDecoder string =
@@ -96,12 +96,12 @@ shapeSelectView index oscillator =
         select [ onChange (ChangeShape index) ]
             [ option
                 [ Attrs.value (toString Sine)
-                , Attrs.selected (oscillator.shape == Sine)
+                , Attrs.selected (shape == Sine)
                 ]
                 [ Html.text "Sine" ]
-            , option [ Attrs.value (toString Triangle), Attrs.selected (oscillator.shape == Triangle) ] [ Html.text "Triangle" ]
-            , option [ Attrs.value (toString Square), Attrs.selected (oscillator.shape == Square) ] [ Html.text "Square" ]
-            , option [ Attrs.value (toString Sawtooth), Attrs.selected (oscillator.shape == Sawtooth) ] [ Html.text "Sawtooth" ]
+            , option [ Attrs.value (toString Triangle), Attrs.selected (shape == Triangle) ] [ Html.text "Triangle" ]
+            , option [ Attrs.value (toString Square), Attrs.selected (shape == Square) ] [ Html.text "Square" ]
+            , option [ Attrs.value (toString Sawtooth), Attrs.selected (shape == Sawtooth) ] [ Html.text "Sawtooth" ]
             ]
 
 

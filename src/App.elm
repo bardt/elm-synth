@@ -1,9 +1,10 @@
 module App exposing (..)
 
-import Json.Decode
+import Array
 import Keys.State as KeysState
+import Keys.Types as KeysTypes
 import Platform.Sub exposing (batch)
-import Sound
+import Sound exposing (..)
 import Types exposing (..)
 
 
@@ -15,49 +16,60 @@ init audioSupported =
     in
         ( { keys = keysModel
           , audioSupported = audioSupported
-          , analyzerEnabled = False
-          , oscillators =
-                [ { defaultOscillator
-                    | volume = 50
-                    , octave = 0
-                  }
-                , { shape = Triangle
-                  , octave = 2
-                  , volume = 12
-                  , fadeOutPeriod = 1
-                  }
-                ]
-          , analyzerData = []
+          , tracks =
+                Array.fromList
+                    [ { gain =
+                            { volume = 100
+                            }
+                      , oscillator =
+                            { shape = Square
+                            , octaveDelta = 0
+                            }
+                      }
+                    , { gain =
+                            { volume = 50
+                            }
+                      , oscillator =
+                            { shape = Triangle
+                            , octaveDelta = 2
+                            }
+                      }
+                    ]
           }
         , Cmd.map KeysMsg keysCmd
         )
 
 
-defaultOscillator : Oscillator
-defaultOscillator =
-    { shape = Sine, volume = 100, octave = 3, fadeOutPeriod = 0.5 }
+renderSoundChain : List Track -> List KeysTypes.Note -> Sound
+renderSoundChain tracks notes =
+    let
+        renderTrackSound index track =
+            gain ("gain" ++ toString index)
+                [ ( "gain", toString (toFloat track.gain.volume / 100) )
+                ]
+            <|
+                List.map (renderOscillatorSound index track) notes
 
+        renderOscillatorSound : Int -> Track -> KeysTypes.Note -> Sound
+        renderOscillatorSound trackNumber track note =
+            oscillator ("oscillator" ++ toString trackNumber ++ "_" ++ toString note)
+                (flatten
+                    [ KeysState.noteToFrequency note track.oscillator.octaveDelta
+                        |> Maybe.map (\f -> ( "frequency", toString f ))
+                    ]
+                )
+                []
 
-passToOscillator : Note -> Oscillator -> Maybe SoundDescriptor
-passToOscillator note oscillator =
-    KeysState.noteToFrequency note oscillator.octave
-        |> Maybe.map (\x -> makeSoundDescriptor x oscillator)
-
-
-passToOscillators : List Oscillator -> Note -> List SoundDescriptor
-passToOscillators oscillators note =
-    List.filterMap (passToOscillator note) oscillators
-
-
-connectChain : List Oscillator -> List Note -> Cmd Msg
-connectChain oscillators notes =
-    notes
-        |> List.concatMap (passToOscillators oscillators)
-        |> Sound.startPlaying
+        flatten : List (Maybe a) -> List a
+        flatten list =
+            List.filterMap identity list
+    in
+        output <|
+            List.indexedMap renderTrackSound tracks
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg ({ oscillators } as model) =
+update msg ({ tracks } as model) =
     case msg of
         KeysMsg msg ->
             let
@@ -67,93 +79,105 @@ update msg ({ oscillators } as model) =
                 { model | keys = keysModel }
                     ! [ Cmd.map KeysMsg keysCmd
                       , KeysState.getNotes keysModel
-                            |> connectChain oscillators
+                            |> renderSoundChain (Array.toList model.tracks)
+                            |> play
                       ]
 
-        ChangeOctaveDelta index octave ->
+        ChangeOctaveDelta index octaveDelta ->
             let
-                changeOctave oscillator =
-                    { oscillator | octave = octave }
+                changeOctave track =
+                    let
+                        oscillator =
+                            track.oscillator
+                    in
+                        { track
+                            | oscillator =
+                                { oscillator
+                                    | octaveDelta = octaveDelta
+                                }
+                        }
 
-                newOscillators =
-                    updateOscillatorAtIndex index changeOctave oscillators
+                newTracks =
+                    updateTrackAtIndex index changeOctave tracks
             in
-                ( { model
-                    | oscillators = newOscillators
-                  }
-                , KeysState.getNotes model.keys
-                    |> connectChain newOscillators
-                )
+                { model
+                    | tracks = newTracks
+                }
+                    ! [ KeysState.getNotes model.keys
+                            |> renderSoundChain (Array.toList newTracks)
+                            |> play
+                      ]
 
         ChangeVolume index volume ->
             let
-                changeVolume oscillator =
-                    { oscillator | volume = volume }
+                changeVolume track =
+                    let
+                        gain =
+                            track.gain
+                    in
+                        { track
+                            | gain =
+                                { gain
+                                    | volume = volume
+                                }
+                        }
 
-                newOscillators =
-                    updateOscillatorAtIndex index changeVolume oscillators
+                newTracks =
+                    updateTrackAtIndex index changeVolume tracks
             in
-                ( { model
-                    | oscillators = newOscillators
-                  }
-                , KeysState.getNotes model.keys
-                    |> connectChain newOscillators
-                )
+                { model
+                    | tracks = newTracks
+                }
+                    ! [ KeysState.getNotes model.keys
+                            |> renderSoundChain (Array.toList newTracks)
+                            |> play
+                      ]
 
         ChangeShape index shape ->
             let
-                changeShape oscillator =
-                    { oscillator | shape = shape }
+                changeShape track =
+                    let
+                        oscillator =
+                            track.oscillator
+                    in
+                        { track
+                            | oscillator =
+                                { oscillator
+                                    | shape = shape
+                                }
+                        }
 
-                newOscillators =
-                    updateOscillatorAtIndex index changeShape oscillators
+                newTracks =
+                    updateTrackAtIndex index changeShape tracks
             in
-                ( { model
-                    | oscillators = newOscillators
-                  }
-                , KeysState.getNotes model.keys
-                    |> connectChain newOscillators
-                )
-
-        UpdateAnalyzerData data ->
-            { model | analyzerData = data } ! []
+                { model
+                    | tracks = newTracks
+                }
+                    ! [ KeysState.getNotes model.keys
+                            |> renderSoundChain (Array.toList newTracks)
+                            |> play
+                      ]
 
         NoOp ->
             model ! []
 
 
-updateOscillatorAtIndex : Int -> (Oscillator -> Oscillator) -> List Oscillator -> List Oscillator
-updateOscillatorAtIndex index update oscillators =
-    List.indexedMap
+type alias Tracks =
+    Array.Array Track
+
+
+updateTrackAtIndex : Int -> (Track -> Track) -> Tracks -> Tracks
+updateTrackAtIndex index update tracks =
+    Array.indexedMap
         (\i o ->
             if (i == index) then
                 update o
             else
                 o
         )
-        oscillators
+        tracks
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    let
-        analyzerSubscription =
-            Sound.updateAnalyzer
-                (\str ->
-                    case Json.Decode.decodeValue decodeAnalyzerData str of
-                        Ok data ->
-                            UpdateAnalyzerData data
-
-                        Err str ->
-                            NoOp
-                )
-    in
-        Sub.batch <|
-            List.filterMap identity
-                [ Just <| Sub.map KeysMsg (KeysState.subscriptions model.keys)
-                , (if model.analyzerEnabled then
-                    Just analyzerSubscription
-                   else
-                    Nothing
-                  )
-                ]
+    Sub.map KeysMsg (KeysState.subscriptions model.keys)
