@@ -4,6 +4,7 @@ port module Sound
         , output
         , gain
         , oscillator
+        , analyser
         , play
         , updateAnalyzer
         )
@@ -40,6 +41,11 @@ gain key =
 oscillator : String -> List SoundProperty -> List Sound -> Sound
 oscillator key =
     SoundNode key "oscillator"
+
+
+analyser : String -> List SoundProperty -> List Sound -> Sound
+analyser key =
+    SoundNode key "analyser"
 
 
 type alias SerializedSound =

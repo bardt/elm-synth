@@ -22,6 +22,24 @@ if (audioSupported) {
   app.ports.startPlaying.subscribe(function (graph) {
     console.log(graph);
     virtualAudioGraph.update(graph);
+
+    var analyser;
+    // analyser = virtualAudioGraph.getAudioNodeById("analyser");
+    if (analyser) {
+      var bufferLength = analyser.frequencyBinCount;
+      var dataArray = new Uint8Array(bufferLength);
+
+      function updateAnalyzer() {
+        if (analyser) {
+          analyser.getByteTimeDomainData(dataArray);
+
+          app.ports.updateAnalyzer.send([].slice.call(dataArray));
+        }
+
+        requestAnimationFrame(updateAnalyzer);
+      }
+      updateAnalyzer();
+    }
   });
 }
 

@@ -43,8 +43,8 @@ init audioSupported =
         )
 
 
-renderSoundChain : List Track -> List KeysTypes.Note -> Sound
-renderSoundChain tracks notes =
+renderSoundChain : Bool -> List Track -> List KeysTypes.Note -> Sound
+renderSoundChain analyzerEnabled tracks notes =
     let
         renderTrackSound index track =
             gain ("gain" ++ toString index)
@@ -67,8 +67,14 @@ renderSoundChain tracks notes =
         flatten list =
             List.filterMap identity list
     in
-        output <|
-            List.indexedMap renderTrackSound tracks
+        output
+            (if analyzerEnabled then
+                [ analyser "analyser" [] <|
+                    List.indexedMap renderTrackSound tracks
+                ]
+             else
+                List.indexedMap renderTrackSound tracks
+            )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -82,7 +88,7 @@ update msg ({ tracks } as model) =
                 { model | keys = keysModel }
                     ! [ Cmd.map KeysMsg keysCmd
                       , KeysState.getNotes keysModel
-                            |> renderSoundChain (Array.toList model.tracks)
+                            |> renderSoundChain model.analyzerEnabled (Array.toList model.tracks)
                             |> play
                       ]
 
@@ -107,7 +113,7 @@ update msg ({ tracks } as model) =
                     | tracks = newTracks
                 }
                     ! [ KeysState.getNotes model.keys
-                            |> renderSoundChain (Array.toList newTracks)
+                            |> renderSoundChain model.analyzerEnabled (Array.toList newTracks)
                             |> play
                       ]
 
@@ -132,7 +138,7 @@ update msg ({ tracks } as model) =
                     | tracks = newTracks
                 }
                     ! [ KeysState.getNotes model.keys
-                            |> renderSoundChain (Array.toList newTracks)
+                            |> renderSoundChain model.analyzerEnabled (Array.toList newTracks)
                             |> play
                       ]
 
@@ -157,7 +163,7 @@ update msg ({ tracks } as model) =
                     | tracks = newTracks
                 }
                     ! [ KeysState.getNotes model.keys
-                            |> renderSoundChain (Array.toList newTracks)
+                            |> renderSoundChain model.analyzerEnabled (Array.toList newTracks)
                             |> play
                       ]
 
