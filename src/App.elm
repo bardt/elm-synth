@@ -1,5 +1,17 @@
 module App exposing (..)
 
+import Array
+import Array.Extra
+import FormHelpers
+import Html exposing (Attribute, Html, div, input, label, option, select, text)
+import Html.Attributes as Attrs
+import Html.Events exposing (on, onClick, onInput, targetValue)
+import Json.Decode as Json
+import Keys.State
+import Keys.Types
+import Keys.View
+import Platform.Sub exposing (batch)
+import Shape exposing (Shape(..))
 import Sound exposing (..)
 
 
@@ -81,29 +93,21 @@ init audioSupported =
           , audioSupported = audioSupported
           , tracks =
                 Array.fromList
-                    [ { gain =
-                            { volume = 100
-                            }
-                      , oscillator =
-                            { shape = Square
-                            , octaveDelta = 0
-                            }
-                      }
-                    , { gain =
-                            { volume = 50
-                            }
-                      , oscillator =
-                            { shape = Triangle
-                            , octaveDelta = 2
-                            }
-                      }
+                    [ Track { volume = 100 }
+                        { shape = Square
+                        , octaveDelta = 0
+                        }
+                    , Track { volume = 50 }
+                        { shape = Triangle
+                        , octaveDelta = 2
+                        }
                     ]
           }
         , Cmd.map KeysMsg keysCmd
         )
 
 
-renderSoundChain : List Track -> List Keys.Types.Note -> Sound
+renderSoundChain : Tracks -> List Keys.Types.Note -> Sound
 renderSoundChain tracks notes =
     let
         renderTrackSound index track =
@@ -128,7 +132,7 @@ renderSoundChain tracks notes =
             List.filterMap identity list
     in
         output <|
-            List.indexedMap renderTrackSound tracks
+            List.indexedMap renderTrackSound (Array.toList tracks)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -142,82 +146,46 @@ update msg ({ tracks } as model) =
                 { model | keys = keysModel }
                     ! [ Cmd.map KeysMsg keysCmd
                       , Keys.State.getNotes keysModel
-                            |> renderSoundChain (Array.toList model.tracks)
+                            |> renderSoundChain model.tracks
                             |> play
                       ]
 
         ChangeOctaveDelta index octaveDelta ->
             let
-                changeOctave track =
-                    let
-                        oscillator =
-                            track.oscillator
-                    in
-                        { track
-                            | oscillator =
-                                { oscillator
-                                    | octaveDelta = octaveDelta
-                                }
-                        }
-
                 newTracks =
-                    updateTrackAtIndex index changeOctave tracks
+                    Array.Extra.update index (changeOctave octaveDelta) tracks
             in
                 { model
                     | tracks = newTracks
                 }
                     ! [ Keys.State.getNotes model.keys
-                            |> renderSoundChain (Array.toList newTracks)
+                            |> renderSoundChain newTracks
                             |> play
                       ]
 
         ChangeVolume index volume ->
             let
-                changeVolume track =
-                    let
-                        gain =
-                            track.gain
-                    in
-                        { track
-                            | gain =
-                                { gain
-                                    | volume = volume
-                                }
-                        }
-
                 newTracks =
-                    updateTrackAtIndex index changeVolume tracks
+                    Array.Extra.update index (changeVolume volume) tracks
             in
                 { model
                     | tracks = newTracks
                 }
                     ! [ Keys.State.getNotes model.keys
-                            |> renderSoundChain (Array.toList newTracks)
+                            |> renderSoundChain newTracks
                             |> play
                       ]
 
         ChangeShape index shape ->
             let
-                changeShape track =
-                    let
-                        oscillator =
-                            track.oscillator
-                    in
-                        { track
-                            | oscillator =
-                                { oscillator
-                                    | shape = shape
-                                }
-                        }
-
                 newTracks =
-                    updateTrackAtIndex index changeShape tracks
+                    Array.Extra.update index (changeShape shape) tracks
             in
                 { model
                     | tracks = newTracks
                 }
                     ! [ Keys.State.getNotes model.keys
-                            |> renderSoundChain (Array.toList newTracks)
+                            |> renderSoundChain newTracks
                             |> play
                       ]
 
@@ -229,16 +197,46 @@ type alias Tracks =
     Array.Array Track
 
 
-updateTrackAtIndex : Int -> (Track -> Track) -> Tracks -> Tracks
-updateTrackAtIndex index update tracks =
-    Array.indexedMap
-        (\i o ->
-            if (i == index) then
-                update o
-            else
-                o
-        )
-        tracks
+changeOctave : Int -> Track -> Track
+changeOctave octaveDelta track =
+    let
+        oscillator =
+            track.oscillator
+    in
+        { track
+            | oscillator =
+                { oscillator
+                    | octaveDelta = octaveDelta
+                }
+        }
+
+
+changeVolume : Int -> Track -> Track
+changeVolume volume track =
+    let
+        gain =
+            track.gain
+    in
+        { track
+            | gain =
+                { gain
+                    | volume = volume
+                }
+        }
+
+
+changeShape : Shape -> Track -> Track
+changeShape shape track =
+    let
+        oscillator =
+            track.oscillator
+    in
+        { track
+            | oscillator =
+                { oscillator
+                    | shape = shape
+                }
+        }
 
 
 subscriptions : Model -> Sub Msg
