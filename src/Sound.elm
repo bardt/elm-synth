@@ -8,18 +8,15 @@ port module Sound
         )
 
 import Json.Encode exposing (Value, object, list, string)
+import Sound.Properties exposing (Property)
 
 
 port startPlaying : Value -> Cmd msg
 
 
 type Sound
-    = SoundNode String String (List SoundProperty) (List Sound)
+    = SoundNode String String (List Property) (List Sound)
     | Silence
-
-
-type alias SoundProperty =
-    ( String, String )
 
 
 output : List Sound -> Sound
@@ -27,18 +24,18 @@ output =
     SoundNode "output" "output" []
 
 
-gain : String -> List SoundProperty -> List Sound -> Sound
+gain : String -> List Property -> List Sound -> Sound
 gain key =
     SoundNode key "gain"
 
 
-oscillator : String -> List SoundProperty -> List Sound -> Sound
+oscillator : String -> List Property -> List Sound -> Sound
 oscillator key =
     SoundNode key "oscillator"
 
 
 type alias SerializedSound =
-    ( String, ( String, String, List SoundProperty ) )
+    ( String, ( String, String, List Property ) )
 
 
 internalSerializeSound : String -> Sound -> List SerializedSound

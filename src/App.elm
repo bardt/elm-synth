@@ -17,6 +17,7 @@ import Keys.View
 
 import Shape exposing (Shape(..))
 import Sound exposing (Sound, output, gain, oscillator, play)
+import Sound.Properties as Props
 import Track exposing (Track, Tracks)
 
 
@@ -49,7 +50,7 @@ init audioSupported =
           , tracks =
                 Array.fromList
                     [ Track { volume = 100 }
-                        { shape = Square
+                        { shape = Sine
                         , octaveDelta = 0
                         }
                     , Track { volume = 50 }
@@ -60,35 +61,6 @@ init audioSupported =
           }
         , Cmd.map KeysMsg keysCmd
         )
-
-
-renderSoundChain : Tracks -> List Keys.Types.Note -> Sound
-renderSoundChain tracks notes =
-    let
-        renderTrackSound index track =
-            gain ("gain" ++ toString index)
-                [ ( "gain", toString (toFloat track.gain.volume / 100) )
-                ]
-            <|
-                List.map (renderOscillatorSound index track) notes
-
-        renderOscillatorSound : Int -> Track -> Keys.Types.Note -> Sound
-        renderOscillatorSound trackNumber track note =
-            oscillator ("oscillator" ++ toString trackNumber ++ "_" ++ toString note)
-                (flatten
-                    [ Keys.State.noteToFrequency note track.oscillator.octaveDelta
-                        |> Maybe.map (\f -> ( "frequency", toString f ))
-                    , Just ( "type", String.toLower <| toString track.oscillator.shape )
-                    ]
-                )
-                []
-
-        flatten : List (Maybe a) -> List a
-        flatten list =
-            List.filterMap identity list
-    in
-        output <|
-            List.indexedMap renderTrackSound (Array.toList tracks)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -121,6 +93,35 @@ update msg ({ keys, tracks } as model) =
 
         NoOp ->
             model ! []
+
+
+renderSoundChain : Tracks -> List Keys.Types.Note -> Sound
+renderSoundChain tracks notes =
+    let
+        renderTrackSound index track =
+            gain ("gain" ++ toString index)
+                [ Props.gain (toFloat track.gain.volume / 100)
+                ]
+            <|
+                List.map (renderOscillatorSound index track) notes
+
+        renderOscillatorSound : Int -> Track -> Keys.Types.Note -> Sound
+        renderOscillatorSound trackNumber track note =
+            oscillator ("oscillator" ++ toString trackNumber ++ "_" ++ toString note)
+                (flatten
+                    [ Keys.State.noteToFrequency note track.oscillator.octaveDelta
+                        |> Maybe.map Props.frequency
+                    , Just (Props.type_ track.oscillator.shape)
+                    ]
+                )
+                []
+
+        flatten : List (Maybe a) -> List a
+        flatten list =
+            List.filterMap identity list
+    in
+        output <|
+            List.indexedMap renderTrackSound (Array.toList tracks)
 
 
 subscriptions : Model -> Sub Msg
