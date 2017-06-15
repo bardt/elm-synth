@@ -8,27 +8,6 @@ type Shape
     | Sawtooth
 
 
-shapes : List Shape
-shapes =
-    [ Sine, Square, Triangle, Sawtooth ]
-
-
-toString : Shape -> String
-toString shape =
-    case shape of
-        Sine ->
-            "sine"
-
-        Square ->
-            "square"
-
-        Triangle ->
-            "triangle"
-
-        Sawtooth ->
-            "sawtooth"
-
-
 fromString : String -> Result String Shape
 fromString str =
     case (String.trim <| String.toLower str) of
