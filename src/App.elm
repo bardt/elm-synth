@@ -48,7 +48,7 @@ renderSoundChain tracks notes =
     let
         renderTrackSound index track =
             gain ("gain" ++ toString index)
-                [ ( "volume", toString track.gain.volume )
+                [ ( "gain", toString (toFloat track.gain.volume / 100) )
                 ]
             <|
                 List.map (renderOscillatorSound index track) notes
@@ -83,8 +83,7 @@ update msg ({ tracks } as model) =
                     ! [ Cmd.map KeysMsg keysCmd
                       , KeysState.getNotes keysModel
                             |> renderSoundChain (Array.toList model.tracks)
-                            |> encodeSound
-                            |> startPlaying
+                            |> play
                       ]
 
         ChangeOctaveDelta index octaveDelta ->
@@ -107,7 +106,10 @@ update msg ({ tracks } as model) =
                 { model
                     | tracks = newTracks
                 }
-                    ! []
+                    ! [ KeysState.getNotes model.keys
+                            |> renderSoundChain (Array.toList newTracks)
+                            |> play
+                      ]
 
         ChangeVolume index volume ->
             let
@@ -129,7 +131,10 @@ update msg ({ tracks } as model) =
                 { model
                     | tracks = newTracks
                 }
-                    ! []
+                    ! [ KeysState.getNotes model.keys
+                            |> renderSoundChain (Array.toList newTracks)
+                            |> play
+                      ]
 
         ChangeShape index shape ->
             let
@@ -151,7 +156,10 @@ update msg ({ tracks } as model) =
                 { model
                     | tracks = newTracks
                 }
-                    ! []
+                    ! [ KeysState.getNotes model.keys
+                            |> renderSoundChain (Array.toList newTracks)
+                            |> play
+                      ]
 
         UpdateAnalyzerData data ->
             { model | analyzerData = data } ! []

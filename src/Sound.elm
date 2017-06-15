@@ -1,4 +1,12 @@
-port module Sound exposing (..)
+port module Sound
+    exposing
+        ( Sound
+        , output
+        , gain
+        , oscillator
+        , play
+        , updateAnalyzer
+        )
 
 import Json.Decode
 import Json.Encode exposing (Value, object, list, string)
@@ -32,11 +40,6 @@ gain key =
 oscillator : String -> List SoundProperty -> List Sound -> Sound
 oscillator key =
     SoundNode key "oscillator"
-
-
-volume : Int -> ( String, String )
-volume value =
-    ( "volume", (toString value) )
 
 
 type alias SerializedSound =
@@ -81,3 +84,10 @@ encodeSound sound =
         sound
             |> serializeSound
             |> (object << List.map encodeEach)
+
+
+play : Sound -> Cmd msg
+play sound =
+    sound
+        |> encodeSound
+        |> startPlaying
