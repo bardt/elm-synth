@@ -23,7 +23,6 @@ view model =
             (Html.map KeysMsg <|
                 KeysView.view model.keys
             )
-                :: analyzer model.analyzerData
                 :: List.indexedMap trackView (Array.toList model.tracks)
         )
 

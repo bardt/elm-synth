@@ -1,7 +1,6 @@
 module App exposing (..)
 
 import Array
-import Json.Decode
 import Keys.State as KeysState
 import Keys.Types as KeysTypes
 import Platform.Sub exposing (batch)
@@ -17,7 +16,6 @@ init audioSupported =
     in
         ( { keys = keysModel
           , audioSupported = audioSupported
-          , analyzerEnabled = False
           , tracks =
                 Array.fromList
                     [ { gain =
@@ -37,14 +35,13 @@ init audioSupported =
                             }
                       }
                     ]
-          , analyzerData = []
           }
         , Cmd.map KeysMsg keysCmd
         )
 
 
-renderSoundChain : Bool -> List Track -> List KeysTypes.Note -> Sound
-renderSoundChain analyzerEnabled tracks notes =
+renderSoundChain : List Track -> List KeysTypes.Note -> Sound
+renderSoundChain tracks notes =
     let
         renderTrackSound index track =
             gain ("gain" ++ toString index)
@@ -67,14 +64,8 @@ renderSoundChain analyzerEnabled tracks notes =
         flatten list =
             List.filterMap identity list
     in
-        output
-            (if analyzerEnabled then
-                [ analyser "analyser" [] <|
-                    List.indexedMap renderTrackSound tracks
-                ]
-             else
-                List.indexedMap renderTrackSound tracks
-            )
+        output <|
+            List.indexedMap renderTrackSound tracks
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -88,7 +79,7 @@ update msg ({ tracks } as model) =
                 { model | keys = keysModel }
                     ! [ Cmd.map KeysMsg keysCmd
                       , KeysState.getNotes keysModel
-                            |> renderSoundChain model.analyzerEnabled (Array.toList model.tracks)
+                            |> renderSoundChain (Array.toList model.tracks)
                             |> play
                       ]
 
@@ -113,7 +104,7 @@ update msg ({ tracks } as model) =
                     | tracks = newTracks
                 }
                     ! [ KeysState.getNotes model.keys
-                            |> renderSoundChain model.analyzerEnabled (Array.toList newTracks)
+                            |> renderSoundChain (Array.toList newTracks)
                             |> play
                       ]
 
@@ -138,7 +129,7 @@ update msg ({ tracks } as model) =
                     | tracks = newTracks
                 }
                     ! [ KeysState.getNotes model.keys
-                            |> renderSoundChain model.analyzerEnabled (Array.toList newTracks)
+                            |> renderSoundChain (Array.toList newTracks)
                             |> play
                       ]
 
@@ -163,12 +154,9 @@ update msg ({ tracks } as model) =
                     | tracks = newTracks
                 }
                     ! [ KeysState.getNotes model.keys
-                            |> renderSoundChain model.analyzerEnabled (Array.toList newTracks)
+                            |> renderSoundChain (Array.toList newTracks)
                             |> play
                       ]
-
-        UpdateAnalyzerData data ->
-            { model | analyzerData = data } ! []
 
         NoOp ->
             model ! []
@@ -192,24 +180,4 @@ updateTrackAtIndex index update tracks =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    let
-        analyzerSubscription =
-            Sound.updateAnalyzer
-                (\str ->
-                    case Json.Decode.decodeValue decodeAnalyzerData str of
-                        Ok data ->
-                            UpdateAnalyzerData data
-
-                        Err str ->
-                            NoOp
-                )
-    in
-        Sub.batch <|
-            List.filterMap identity
-                [ Just <| Sub.map KeysMsg (KeysState.subscriptions model.keys)
-                , (if model.analyzerEnabled then
-                    Just analyzerSubscription
-                   else
-                    Nothing
-                  )
-                ]
+    Sub.map KeysMsg (KeysState.subscriptions model.keys)

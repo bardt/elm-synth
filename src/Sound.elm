@@ -4,19 +4,13 @@ port module Sound
         , output
         , gain
         , oscillator
-        , analyser
         , play
-        , updateAnalyzer
         )
 
-import Json.Decode
 import Json.Encode exposing (Value, object, list, string)
 
 
 port startPlaying : Value -> Cmd msg
-
-
-port updateAnalyzer : (Json.Decode.Value -> msg) -> Sub msg
 
 
 type Sound
@@ -43,16 +37,11 @@ oscillator key =
     SoundNode key "oscillator"
 
 
-analyser : String -> List SoundProperty -> List Sound -> Sound
-analyser key =
-    SoundNode key "analyser"
-
-
 type alias SerializedSound =
-    List ( String, ( String, String, List SoundProperty ) )
+    ( String, ( String, String, List SoundProperty ) )
 
 
-internalSerializeSound : String -> Sound -> SerializedSound
+internalSerializeSound : String -> Sound -> List SerializedSound
 internalSerializeSound connectedTo sound =
     case sound of
         SoundNode "output" "output" _ connections ->
@@ -70,7 +59,7 @@ internalSerializeSound connectedTo sound =
             []
 
 
-serializeSound : Sound -> SerializedSound
+serializeSound : Sound -> List SerializedSound
 serializeSound sound =
     internalSerializeSound "" sound
 

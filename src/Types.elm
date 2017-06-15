@@ -1,6 +1,5 @@
 module Types exposing (..)
 
-import Time
 import Keys.Types as KeysTypes
 import Json.Encode
 import Json.Decode
@@ -11,8 +10,6 @@ type alias Model =
     { audioSupported : Bool
     , keys : KeysTypes.Model
     , tracks : Array.Array Track
-    , analyzerData : AnalyzerData
-    , analyzerEnabled : Bool
     }
 
 
@@ -28,7 +25,6 @@ type Msg
     = ChangeOctaveDelta Int OctaveDelta
     | ChangeVolume Int Volume
     | ChangeShape Int Shape
-    | UpdateAnalyzerData AnalyzerData
     | KeysMsg KeysTypes.Msg
     | NoOp
 
