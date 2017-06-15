@@ -1,6 +1,11 @@
 module Shape exposing (..)
 
-import Types exposing (..)
+
+type Shape
+    = Sine
+    | Square
+    | Triangle
+    | Sawtooth
 
 
 shapes : List Shape

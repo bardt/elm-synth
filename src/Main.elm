@@ -1,9 +1,7 @@
 module Main exposing (..)
 
-import App exposing (init, update, subscriptions)
+import App exposing (Model, Msg, init, update, subscriptions, view)
 import Html exposing (programWithFlags)
-import Types exposing (Model, Msg)
-import View exposing (view)
 
 
 main : Program Bool Model Msg
