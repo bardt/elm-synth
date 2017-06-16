@@ -3,27 +3,17 @@ module App exposing (..)
 -- General
 
 import Array
-import Platform.Sub exposing (batch)
-
-
--- Keys
-
+import Element exposing (column, el, row, text, viewport)
+import Html exposing (Html)
 import Keys.State
 import Keys.Types
 import Keys.View
-
-
--- Data Structures
-
+import Platform.Sub exposing (batch)
 import Shape exposing (Shape(..))
-import Sound exposing (Sound, output, gain, oscillator, play)
+import Sound exposing (Sound, gain, oscillator, output, play)
 import Sound.Properties as Props
+import Style exposing (styleSheet)
 import Track exposing (Track, Tracks)
-
-
--- HTML
-
-import Html exposing (Html, Attribute, div)
 
 
 type alias Model =
@@ -131,22 +121,31 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        (if not model.audioSupported then
-            [ Html.text "Audio NOT supported" ]
-         else
-            [ (Html.map KeysMsg <|
-                Keys.View.view model.keys
-              )
-            , (Html.map TrackMsg <| tracksView model.tracks)
-            ]
-        )
+    viewport (styleSheet []) <|
+        column ""
+            []
+            (if not model.audioSupported then
+                [ text "Audio NOT supported" ]
+             else
+                [ (Element.map KeysMsg <|
+                    Element.html <|
+                        Keys.View.view model.keys
+                  )
+                , (Element.map TrackMsg <| tracksView model.tracks)
+                ]
+            )
 
 
-tracksView : Tracks -> Html Track.Msg
+tracksView : Tracks -> Element.Element String v Track.Msg
 tracksView tracks =
     let
+        renderTrack index track =
+            Track.view index track
+                |> Element.html
+                |> el "" []
+
+        renderedTracks : List (Element.Element String v Track.Msg)
         renderedTracks =
-            List.indexedMap Track.view (Array.toList tracks)
+            List.indexedMap renderTrack (Array.toList tracks)
     in
-        div [] renderedTracks
+        row "" [] renderedTracks
