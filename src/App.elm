@@ -4,6 +4,7 @@ module App exposing (..)
 
 import Array
 import Element exposing (column, el, row, text, viewport)
+import Element.Attributes exposing (alignLeft, center, padding, spacing)
 import Html exposing (Html)
 import Keys.State
 import Keys.Types
@@ -119,33 +120,40 @@ subscriptions model =
     Sub.map KeysMsg (Keys.State.subscriptions model.keys)
 
 
+type Styles
+    = None
+
+
 view : Model -> Html Msg
 view model =
     viewport (styleSheet []) <|
-        column ""
+        column None
             []
             (if not model.audioSupported then
                 [ text "Audio NOT supported" ]
              else
-                [ (Element.map KeysMsg <|
-                    Element.html <|
-                        Keys.View.view model.keys
+                [ (row None
+                    [ center ]
+                    [ Keys.View.view model.keys
+                        |> Element.html
+                        |> Element.map KeysMsg
+                    ]
                   )
                 , (Element.map TrackMsg <| tracksView model.tracks)
                 ]
             )
 
 
-tracksView : Tracks -> Element.Element String v Track.Msg
+tracksView : Tracks -> Element.Element Styles v Track.Msg
 tracksView tracks =
     let
         renderTrack index track =
             Track.view index track
                 |> Element.html
-                |> el "" []
+                |> el None []
 
-        renderedTracks : List (Element.Element String v Track.Msg)
+        renderedTracks : List (Element.Element Styles v Track.Msg)
         renderedTracks =
             List.indexedMap renderTrack (Array.toList tracks)
     in
-        row "" [] renderedTracks
+        row None [ spacing 10, padding 10, alignLeft ] renderedTracks
