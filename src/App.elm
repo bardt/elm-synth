@@ -13,6 +13,7 @@ import Sound exposing (Sound, gain, oscillator, output, play)
 import Sound.Properties as Props
 import Style exposing (styleSheet)
 import Track exposing (Track, Tracks)
+import Styles exposing (Styles)
 
 
 type alias Model =
@@ -118,19 +119,15 @@ subscriptions model =
     Sub.map KeysMsg (Keys.subscriptions model.keys)
 
 
-type Styles
-    = None
-
-
 view : Model -> Html Msg
 view model =
     viewport (styleSheet []) <|
-        column None
+        column Styles.none
             []
             (if not model.audioSupported then
-                [ text "Audio NOT supported" ]
+                [ text "Audio is NOT supported in your browser" ]
              else
-                [ (row None
+                [ (row Styles.none
                     [ center ]
                     [ Keys.view model.keys
                         |> Element.html
@@ -145,13 +142,8 @@ view model =
 tracksView : Tracks -> Element.Element Styles v Track.Msg
 tracksView tracks =
     let
-        renderTrack index track =
-            Track.view index track
-                |> Element.html
-                |> el None []
-
         renderedTracks : List (Element.Element Styles v Track.Msg)
         renderedTracks =
-            List.indexedMap renderTrack (Array.toList tracks)
+            List.indexedMap Track.view (Array.toList tracks)
     in
-        row None [ spacing 10, padding 10, alignLeft ] renderedTracks
+        column Styles.none [ spacing 10, padding 10, alignLeft ] renderedTracks

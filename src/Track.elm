@@ -3,11 +3,14 @@ module Track exposing (Track, Tracks, Msg, update, view)
 import Array exposing (Array)
 import Array.Extra
 import FormHelpers
-import Html exposing (Html, div, form, input, label, option, text, select)
+import Element exposing (Element, Attribute, form, row, labelBelow, select, option, text, html)
+import Element.Events exposing (on, onInput)
+import Html
 import Html.Attributes as Attrs
-import Html.Events exposing (on, targetValue)
+import Html.Events exposing (targetValue)
 import Shape exposing (Shape(..))
 import Json.Decode as Json
+import Styles exposing (Styles)
 
 
 type alias Track =
@@ -102,67 +105,69 @@ changeShape shape track =
         }
 
 
-view : Int -> Track -> Html Msg
+view : Int -> Track -> Element Styles v Msg
 view trackNumber track =
-    form []
-        [ div []
-            [ octaveChangeView trackNumber track.oscillator.octaveDelta ]
-        , div []
-            [ volumeChangeView trackNumber track.gain.volume ]
-        , div []
-            [ shapeSelectView trackNumber track.oscillator.shape ]
-        ]
+    Element.form <|
+        row Styles.none
+            []
+            [ octaveChangeView trackNumber track.oscillator.octaveDelta
+            , volumeChangeView trackNumber track.gain.volume
+            , shapeSelectView trackNumber track.oscillator.shape
+            ]
 
 
-octaveChangeView : Int -> Int -> Html Msg
+octaveChangeView : Int -> Int -> Element Styles v Msg
 octaveChangeView index octaveDelta =
-    label []
-        [ text "Octave: "
-        , input
-            [ Attrs.type_ "number"
-            , Attrs.value <| toString octaveDelta
-            , FormHelpers.onIntInput (ChangeOctaveDelta index)
-            ]
-            []
-        ]
+    labelBelow Styles.none [] (text "Octave") <|
+        html <|
+            Html.input
+                [ Attrs.type_ "number"
+                , Attrs.value <| toString octaveDelta
+                , FormHelpers.onIntInput (ChangeOctaveDelta index)
+                ]
+                []
 
 
-volumeChangeView : Int -> Int -> Html Msg
+volumeChangeView : Int -> Int -> Element Styles v Msg
 volumeChangeView index volume =
-    label []
-        [ text "Volume: "
-        , input
-            [ Attrs.type_ "range"
-            , Attrs.min "0"
-            , Attrs.max "100"
-            , Attrs.value <| toString volume
-            , FormHelpers.onIntInput (ChangeVolume index)
-            ]
+    labelBelow Styles.none
+        []
+        (text "Volume")
+    <|
+        row Styles.none
             []
-        , input
-            [ Attrs.type_ "number"
-            , FormHelpers.onIntInput (ChangeVolume index)
-            , Attrs.value <| toString volume
+            [ html <|
+                Html.input
+                    [ Attrs.type_ "range"
+                    , Attrs.min "0"
+                    , Attrs.max "100"
+                    , Attrs.value <| toString volume
+                    , FormHelpers.onIntInput (ChangeVolume index)
+                    ]
+                    []
+            , html <|
+                Html.input
+                    [ Attrs.type_ "number"
+                    , FormHelpers.onIntInput (ChangeVolume index)
+                    , Attrs.value <| toString volume
+                    ]
+                    []
             ]
-            []
-        ]
 
 
-shapeSelectView : Int -> Shape -> Html Msg
+shapeSelectView : Int -> Shape -> Element Styles v Msg
 shapeSelectView index shape =
     let
-        onChange : (Shape -> Msg) -> Html.Attribute Msg
+        onChange : (Shape -> Msg) -> Attribute v Msg
         onChange tagger =
             on "input"
-                (targetValue
-                    |> Json.andThen shapeDecoder
-                    |> Json.map tagger
-                )
+                (targetValue |> Json.andThen shapeDecoder |> Json.map tagger)
 
-        shapeOption : Shape -> Html Msg
+        shapeOption : Shape -> Element.Option Styles v Msg
         shapeOption s =
-            option [ Attrs.value (toString s), Attrs.selected (shape == s) ]
-                [ text (toString s) ]
+            option (toString s)
+                (shape == s)
+                (text <| toString s)
 
         shapeDecoder : String -> Json.Decoder Shape
         shapeDecoder string =
@@ -173,5 +178,5 @@ shapeSelectView index shape =
                 Err message ->
                     Json.fail message
     in
-        select [ onChange (ChangeShape index) ] <|
-            List.map shapeOption [ Sine, Triangle, Square, Sawtooth ]
+        select "Waveshape" Styles.none [ onChange (ChangeShape index) ] <|
+            List.map shapeOption Shape.shapes

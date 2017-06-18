@@ -8,6 +8,15 @@ type Shape
     | Sawtooth
 
 
+shapes : List Shape
+shapes =
+    [ Sine
+    , Square
+    , Triangle
+    , Sawtooth
+    ]
+
+
 fromString : String -> Result String Shape
 fromString str =
     case (String.trim <| String.toLower str) of
