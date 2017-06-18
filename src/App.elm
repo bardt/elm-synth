@@ -6,9 +6,7 @@ import Array
 import Element exposing (column, el, row, text, viewport)
 import Element.Attributes exposing (alignLeft, center, padding, spacing)
 import Html exposing (Html)
-import Keys.State
-import Keys.Types
-import Keys.View
+import Keys
 import Platform.Sub exposing (batch)
 import Shape exposing (Shape(..))
 import Sound exposing (Sound, gain, oscillator, output, play)
@@ -19,14 +17,14 @@ import Track exposing (Track, Tracks)
 
 type alias Model =
     { audioSupported : Bool
-    , keys : Keys.Types.Model
+    , keys : Keys.Model
     , tracks : Tracks
     }
 
 
 type Msg
     = TrackMsg Track.Msg
-    | KeysMsg Keys.Types.Msg
+    | KeysMsg Keys.Msg
     | NoOp
 
 
@@ -34,7 +32,7 @@ init : Bool -> ( Model, Cmd Msg )
 init audioSupported =
     let
         ( keysModel, keysCmd ) =
-            Keys.State.init
+            Keys.init
     in
         ( { keys = keysModel
           , audioSupported = audioSupported
@@ -60,11 +58,11 @@ update msg ({ keys, tracks } as model) =
         KeysMsg msg ->
             let
                 ( keysModel, keysCmd ) =
-                    Keys.State.update msg keys
+                    Keys.update msg keys
             in
                 { model | keys = keysModel }
                     ! [ Cmd.map KeysMsg keysCmd
-                      , Keys.State.getNotes keysModel
+                      , Keys.getNotes keysModel
                             |> renderSoundChain tracks
                             |> play
                       ]
@@ -77,7 +75,7 @@ update msg ({ keys, tracks } as model) =
                 { model
                     | tracks = newTracks
                 }
-                    ! [ Keys.State.getNotes keys
+                    ! [ Keys.getNotes keys
                             |> renderSoundChain tracks
                             |> play
                       ]
@@ -86,7 +84,7 @@ update msg ({ keys, tracks } as model) =
             model ! []
 
 
-renderSoundChain : Tracks -> List Keys.Types.Note -> Sound
+renderSoundChain : Tracks -> List Keys.Note -> Sound
 renderSoundChain tracks notes =
     let
         renderTrackSound index track =
@@ -96,11 +94,11 @@ renderSoundChain tracks notes =
             <|
                 List.map (renderOscillatorSound index track) notes
 
-        renderOscillatorSound : Int -> Track -> Keys.Types.Note -> Sound
+        renderOscillatorSound : Int -> Track -> Keys.Note -> Sound
         renderOscillatorSound trackNumber track note =
             oscillator ("oscillator" ++ toString trackNumber ++ "_" ++ toString note)
                 (flatten
-                    [ Keys.State.noteToFrequency note track.oscillator.octaveDelta
+                    [ Keys.noteToFrequency note track.oscillator.octaveDelta
                         |> Maybe.map Props.frequency
                     , Just (Props.type_ track.oscillator.shape)
                     ]
@@ -117,7 +115,7 @@ renderSoundChain tracks notes =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.map KeysMsg (Keys.State.subscriptions model.keys)
+    Sub.map KeysMsg (Keys.subscriptions model.keys)
 
 
 type Styles
@@ -134,7 +132,7 @@ view model =
              else
                 [ (row None
                     [ center ]
-                    [ Keys.View.view model.keys
+                    [ Keys.view model.keys
                         |> Element.html
                         |> Element.map KeysMsg
                     ]

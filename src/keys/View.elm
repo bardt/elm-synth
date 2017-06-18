@@ -1,12 +1,12 @@
-module Keys.View exposing (..)
+module Keys.View exposing (view)
 
-import Keys.Types exposing (..)
 import Html exposing (Html)
-import Html.Events exposing (onMouseDown, onMouseUp, onMouseLeave)
-import Svg exposing (Svg, g, polygon, svg, text_, text)
-import Svg.Attributes exposing (points, fill)
+import Html.Events exposing (onMouseDown, onMouseLeave, onMouseUp)
+import Keys.Types exposing (..)
 import List.Extra exposing (findIndex)
 import String exposing (join)
+import Svg exposing (Svg, g, polygon, svg, text, text_)
+import Svg.Attributes exposing (fill, fontSize, points, stroke, transform, x, y)
 
 
 view : Model -> Html Msg
@@ -146,9 +146,9 @@ whiteKeyView key keyType translate =
                             [ ( round (toFloat blackWidth / 2) + gapSize, blackHeight + gapSize ) ]
                    )
     in
-        g [ Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)" ]
+        g [ transform <| "translate(" ++ toString translate ++ ", 0)" ]
             [ polygon
-                [ Svg.Attributes.stroke "black"
+                [ stroke "black"
                 , fill
                     (if key.pressed then
                         "red"
@@ -159,18 +159,18 @@ whiteKeyView key keyType translate =
                     |> List.map pointToString
                     |> join " "
                     |> points
-                , Html.Events.onMouseDown (KeyPressed key)
-                , Html.Events.onMouseUp (KeyReleased key)
-                , Html.Events.onMouseLeave (KeyReleased key)
+                , onMouseDown (KeyPressed key)
+                , onMouseUp (KeyReleased key)
+                , onMouseLeave (KeyReleased key)
                 ]
                 []
-            , Svg.text_
-                [ Svg.Attributes.fill "black"
-                , Svg.Attributes.fontSize <| toString <| whiteWidth // 2
-                , Svg.Attributes.y <| toString <| whiteHeight - gapSize * 4
-                , Svg.Attributes.x <| toString <| gapSize * 2
+            , text_
+                [ fill "black"
+                , fontSize <| toString <| whiteWidth // 2
+                , y <| toString <| whiteHeight - gapSize * 4
+                , x <| toString <| gapSize * 2
                 ]
-                [ Svg.text <| noteToString key.note
+                [ text <| noteToString key.note
                 ]
             ]
 
@@ -185,7 +185,7 @@ blackKeyView key translate =
             , ( blackWidth - gapSize, 0 )
             ]
     in
-        g [ Svg.Attributes.transform <| "translate(" ++ toString translate ++ ", 0)" ]
+        g [ transform <| "translate(" ++ toString translate ++ ", 0)" ]
             [ polygon
                 [ fill
                     (if key.pressed then
@@ -202,12 +202,12 @@ blackKeyView key translate =
                 , onMouseLeave (KeyReleased key)
                 ]
                 []
-            , Svg.text_
-                [ Svg.Attributes.fill "white"
-                , Svg.Attributes.fontSize <| toString <| blackWidth // 2
-                , Svg.Attributes.y <| toString <| blackHeight - gapSize * 4
-                , Svg.Attributes.x <| toString <| gapSize * 2
+            , text_
+                [ fill "white"
+                , fontSize <| toString <| blackWidth // 2
+                , y <| toString <| blackHeight - gapSize * 4
+                , x <| toString <| gapSize * 2
                 ]
-                [ Svg.text <| noteToString key.note
+                [ text <| noteToString key.note
                 ]
             ]

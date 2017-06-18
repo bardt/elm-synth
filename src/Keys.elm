@@ -1,9 +1,34 @@
-module Keys.State exposing (..)
+module Keys
+    exposing
+        ( init
+        , update
+        , view
+        , subscriptions
+        , noteToFrequency
+        , getNotes
+        , Model
+        , Note
+        , Msg
+        )
 
-import Keys.Types exposing (..)
 import Dict
-import List.Extra exposing (find)
+import Html exposing (Html)
 import Keyboard exposing (KeyCode, downs, ups)
+import Keys.Types exposing (..)
+import Keys.View
+import List.Extra exposing (find)
+
+
+type alias Model =
+    Keys.Types.Model
+
+
+type alias Msg =
+    Keys.Types.Msg
+
+
+type alias Note =
+    Keys.Types.Note
 
 
 init : ( Model, Cmd Msg )
@@ -133,3 +158,8 @@ subscriptions model =
                 |> Maybe.withDefault NoOp
     in
         Sub.batch [ downs onKeyDown, ups onKeyUp ]
+
+
+view : Model -> Html.Html Msg
+view =
+    Keys.View.view
