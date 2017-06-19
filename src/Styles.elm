@@ -5,5 +5,6 @@ type Styles
     = None
 
 
+none : Styles
 none =
     None
