@@ -14,3 +14,7 @@ Upcoming work will focus on:
 ## Development
 
 This project is bootstrapped with [Create Elm App](https://github.com/halfzebra/create-elm-app). Manual is [here](https://github.com/bardt/elm-synth/blob/master/ELM_APP_README.md)
+
+## Demo
+
+Demo deployed on 19 June 2017: https://elm-synth-cdwivlvpsi.now.sh/
